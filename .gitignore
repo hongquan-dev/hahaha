@@ -1,0 +1,34 @@
+# --- Build & Artifacts ---
+target/
+build/
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# --- Java ---
+*.class
+*.ctxt
+.factorypath
+
+# --- Logs ---
+*.log
+logs/
+log/
+
+# --- IDEs & Editors ---
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.vscode/
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
