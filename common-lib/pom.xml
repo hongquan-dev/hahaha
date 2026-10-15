@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.fooddelivery</groupId>
+        <artifactId>food-delivery-backend</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>common-lib</artifactId>
+    <name>common-lib</name>
+    <description>Shared DTOs, Exceptions, and Utilities</description>
+
+    <properties>
+<!--        <food-delivery-libs.version>1.0.0</food-delivery-libs.version>-->
+        <food-delivery-libs.version>1.0.0-SNAPSHOT</food-delivery-libs.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-log4j2</artifactId>
+        </dependency>
+
+        <!-- Spring Data JPA -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- PostgreSQL Driver -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-xml</artifactId>
+        </dependency>
+
+        <!-- Thư viện ID (Sinh và giải mã ID 14 số, EntityType) -->
+        <dependency>
+            <groupId>com.fooddelivery</groupId>
+            <artifactId>common-id-lib</artifactId>
+            <version>${food-delivery-libs.version}</version>
+        </dependency>
+
+        <!-- Thư viện DTO (Base Response, phân trang,...) -->
+        <dependency>
+            <groupId>com.fooddelivery</groupId>
+            <artifactId>common-dto-lib</artifactId>
+            <version>${food-delivery-libs.version}</version>
+        </dependency>
+
+        <!-- Thư viện Web (Nếu có dùng chung cấu hình Web, Exception Handler,...) -->
+        <dependency>
+            <groupId>com.fooddelivery</groupId>
+            <artifactId>common-web-lib</artifactId>
+            <version>${food-delivery-libs.version}</version>
+        </dependency>
+    </dependencies>
+
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+</project>

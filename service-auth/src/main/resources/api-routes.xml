@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes>
+    <!-- API Đăng nhập: Gộp chung class và method -->
+    <!-- schema: đường dẫn file JSON Schema trong resources, check cấu trúc body trước khi chạy validator -->
+    <route>
+        <method>POST</method>
+        <path>/auth/login</path>
+        <schema>schemas/login.json</schema>
+        <validator>com.fooddelivery.auth.validation.AuthValidator.validateLogin</validator>
+        <controller>AuthController</controller>
+    </route>
+
+    <!-- API Đăng ký -->
+    <route>
+        <method>POST</method>
+        <path>/auth/register</path>
+        <schema>schemas/register.json</schema>
+        <validator>com.fooddelivery.auth.validation.AuthValidator.validateRegister</validator>
+        <controller>AuthController</controller>
+    </route>
+
+    <!-- API Health Check: Không cần validate thì để trống -->
+    <route>
+        <method>GET</method>
+        <path>/auth/health</path>
+        <schema></schema>
+        <validator></validator>
+        <controller>AuthController</controller>
+    </route>
+</routes>
