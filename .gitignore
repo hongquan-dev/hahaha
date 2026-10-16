@@ -20,7 +20,7 @@ log/
 
 # --- IDEs & Editors ---
 # IntelliJ IDEA
-.idea/
+#.idea/
 *.iml
 *.iws
 *.ipr

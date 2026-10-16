@@ -9,8 +9,8 @@
         <version>1.0.0</version>
     </parent>
 
-    <artifactId>service-restaurant</artifactId>
-    <name>service-restaurant</name>
+    <artifactId>fd-restaurant-service</artifactId>
+    <name>food-delivery-restaurant-service</name>
     <description>Restaurant Management Service</description>
 
     <dependencies>

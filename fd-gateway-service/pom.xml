@@ -9,8 +9,8 @@
         <version>1.0.0</version>
     </parent>
 
-    <artifactId>service-api-gateway</artifactId>
-    <name>service-api-gateway</name>
+    <artifactId>fd-gateway-service</artifactId>
+    <name>food-delivery-gateway-service</name>
     <description>Spring Cloud Gateway</description>
 
     <dependencies>

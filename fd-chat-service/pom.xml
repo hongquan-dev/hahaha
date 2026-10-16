@@ -9,9 +9,9 @@
         <version>1.0.0</version>
     </parent>
 
-    <artifactId>service-order</artifactId>
-    <name>service-order</name>
-    <description>Order Management Service</description>
+    <artifactId>fd-chat-service</artifactId>
+    <name>food-delivery-chat-service</name>
+    <description>Chat Management Service</description>
 
     <dependencies>
         <dependency>

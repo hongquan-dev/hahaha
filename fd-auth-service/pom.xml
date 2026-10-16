@@ -9,8 +9,8 @@
         <version>1.0.0</version>
     </parent>
 
-    <artifactId>service-auth</artifactId>
-    <name>service-auth</name>
+    <artifactId>fd-auth-service</artifactId>
+    <name>food-delivery-auth-service</name>
     <description>Auth Management Service</description>
 
     <dependencies>

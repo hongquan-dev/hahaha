@@ -9,8 +9,8 @@
         <version>1.0.0</version>
     </parent>
 
-    <artifactId>service-delivery</artifactId>
-    <name>service-delivery</name>
+    <artifactId>fd-delivery-service</artifactId>
+    <name>food-delivery-delivery-service</name>
     <description>Delivery Management Service</description>
 
     <dependencies>

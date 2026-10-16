@@ -21,12 +21,12 @@
 
     <modules>
         <module>common-lib</module>
-        <module>service-api-gateway</module>
-        <module>service-auth</module>
-        <module>service-restaurant</module>
-        <module>service-order</module>
-        <module>service-delivery</module>
-        <module>service-chat</module>
+        <module>fd-gateway-service</module>
+        <module>fd-auth-service</module>
+        <module>fd-restaurant-service</module>
+        <module>fd-order-service</module>
+        <module>fd-delivery-service</module>
+        <module>fd-chat-service</module>
     </modules>
 
     <properties>
