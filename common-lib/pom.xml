@@ -73,6 +73,13 @@
             <artifactId>common-web-lib</artifactId>
             <version>${food-delivery-libs.version}</version>
         </dependency>
+
+        <!-- Luồng xác thực API: đăng ký route (api-routes.xml), check schema, gọi validator. Service phải có api-routes.xml -->
+        <dependency>
+            <groupId>com.fooddelivery</groupId>
+            <artifactId>common-api-flow-lib</artifactId>
+            <version>${food-delivery-libs.version}</version>
+        </dependency>
     </dependencies>
 
     <repositories>

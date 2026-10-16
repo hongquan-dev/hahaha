@@ -1,30 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <routes>
-    <!-- API Đăng nhập: Gộp chung class và method -->
-    <!-- schema: đường dẫn file JSON Schema trong resources, check cấu trúc body trước khi chạy validator -->
+    <!-- API test: path tĩnh -->
     <route>
         <method>POST</method>
-        <path>/auth/login</path>
-        <schema>schemas/login.json</schema>
-        <validator>com.fooddelivery.auth.validation.AuthValidator.validateLogin</validator>
-        <controller>AuthController</controller>
+        <path>/auth/test/items</path>
+        <schema>schemas/test-item.json</schema>
+        <validator>com.fooddelivery.auth.validation.TestValidator.validateItem</validator>
+        <controller>TestController</controller>
     </route>
 
-    <!-- API Đăng ký -->
+    <!-- API test: path có biến {id} -->
     <route>
         <method>POST</method>
-        <path>/auth/register</path>
-        <schema>schemas/register.json</schema>
-        <validator>com.fooddelivery.auth.validation.AuthValidator.validateRegister</validator>
-        <controller>AuthController</controller>
-    </route>
-
-    <!-- API Health Check: Không cần validate thì để trống -->
-    <route>
-        <method>GET</method>
-        <path>/auth/health</path>
-        <schema></schema>
-        <validator></validator>
-        <controller>AuthController</controller>
+        <path>/auth/test/items/{id}</path>
+        <schema>schemas/test-item.json</schema>
+        <validator>com.fooddelivery.auth.validation.TestValidator.validateItem</validator>
+        <controller>TestController</controller>
     </route>
 </routes>
