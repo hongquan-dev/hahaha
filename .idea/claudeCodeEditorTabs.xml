@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ClaudeCodeEditorTabs">
+    <option name="activeSessionId" value="fae31759-0272-44e1-8439-2e6b574ae161" />
+    <option name="openSessionIds">
+      <list>
+        <option value="fae31759-0272-44e1-8439-2e6b574ae161" />
+      </list>
+    </option>
+    <option name="sessionPaths">
+      <map>
+        <entry key="fae31759-0272-44e1-8439-2e6b574ae161" value="/sessions/08890fb1-edf6-4e6b-9546-2af817ef7361" />
+      </map>
+    </option>
+    <option name="sessionTitles">
+      <map>
+        <entry key="fae31759-0272-44e1-8439-2e6b574ae161" value="Mọi api đến ứng dụng này đều đi qua hàm preHandle" />
+      </map>
+    </option>
+  </component>
+</project>
