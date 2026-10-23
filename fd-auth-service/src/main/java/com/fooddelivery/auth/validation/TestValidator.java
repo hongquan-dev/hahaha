@@ -1,58 +1,24 @@
 package com.fooddelivery.auth.validation;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.http.HttpServletRequest;
+import com.fooddelivery.apiflow.validation.ValidationRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Component;
-
-import java.util.Iterator;
-import java.util.Map;
 
 // Validator for the test APIs in TestController
 @Component
 public class TestValidator {
     private static final Logger log = LogManager.getLogger(TestValidator.class);
-    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     // Matches <validator>...TestValidator.validateItem</validator> in api-routes.xml
-    // Body structure and data types were already checked against schemas/test-item.json
-    public boolean validateItem(HttpServletRequest request, String requestBody) {
-        JsonNode body = parseBody(requestBody);
-        if (body == null) {
-            return false;
-        }
-
-        // Every field in the body must have a value: no null, no blank string, no empty object/array
-        Iterator<Map.Entry<String, JsonNode>> fields = body.fields();
-        while (fields.hasNext()) {
-            Map.Entry<String, JsonNode> field = fields.next();
-            if (isEmpty(field.getValue())) {
-                log.warn("[VALIDATE] Field '{}' must not be empty", field.getKey());
-                return false;
-            }
-        }
+    // No checks: only logs what the validator receives from the request, then lets it through
+    public boolean validateItem(ValidationRequest request) {
+        log.info("[VALIDATE] ===== [{}] {} =====", request.getMethod(), request.getPath());
+        log.info("[VALIDATE] Path variables : {}", request.getPathVariables());
+        log.info("[VALIDATE] Query params   : {}", request.getQueryParams());
+        request.getHeaders().forEach((name, values) -> log.info("[VALIDATE] Header         : {} = {}", name, values));
+        log.info("[VALIDATE] Body (raw)     : {}", request.getBody());
+        log.info("[VALIDATE] Body (json)    : {}", request.getBodyJson());
         return true;
-    }
-
-    private boolean isEmpty(JsonNode value) {
-        if (value.isNull()) {
-            return true;
-        }
-        if (value.isTextual()) {
-            return value.asText().isBlank();
-        }
-        return value.isContainerNode() && value.isEmpty();
-    }
-
-    private JsonNode parseBody(String requestBody) {
-        try {
-            return objectMapper.readTree(requestBody);
-        } catch (JsonProcessingException e) {
-            log.warn("[VALIDATE] Cannot parse request body: {}", e.getOriginalMessage());
-            return null;
-        }
     }
 }

@@ -1,0 +1,71 @@
+{
+  "info": {
+    "name": "fd-auth-service",
+    "description": "API test của auth service. Validator (TestValidator.validateItem) in ra log mọi thông tin lấy được: path variable, query param, header, body.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8081" }
+  ],
+  "item": [
+    {
+      "name": "Test - Create item (path + query + header + body)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-Client-Id", "value": "mobile-app" },
+          { "key": "X-Request-Id", "value": "{{$guid}}" },
+          { "key": "Authorization", "value": "Bearer test-token-123" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/test/users/:userId/items?source=web&lang=vi",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "test", "users", ":userId", "items"],
+          "query": [
+            { "key": "source", "value": "web" },
+            { "key": "lang", "value": "vi" }
+          ],
+          "variable": [
+            { "key": "userId", "value": "42", "description": "Path variable {userId}" }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Phở bò\",\n  \"price\": 35000\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "description": "Body phải đúng schemas/test-item.json: có đủ name (string) và price (number), không có field lạ."
+      }
+    },
+    {
+      "name": "Test - Create item (query param lặp lại, giá trị có dấu/khoảng trắng)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-client-id", "value": "web-portal" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/test/users/:userId/items?tag=hot&tag=new&note=giao nhanh",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "test", "users", ":userId", "items"],
+          "query": [
+            { "key": "tag", "value": "hot" },
+            { "key": "tag", "value": "new" },
+            { "key": "note", "value": "giao nhanh" }
+          ],
+          "variable": [
+            { "key": "userId", "value": "user 01", "description": "Có khoảng trắng để xem giá trị đã được URL-decode" }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Bún chả\",\n  \"price\": 40000\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "description": "Không có query param source. Header viết thường x-client-id vẫn đọc được bằng getHeader(\"X-Client-Id\")."
+      }
+    }
+  ]
+}

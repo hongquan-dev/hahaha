@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ClaudeCodeEditorTabs">
-    <option name="activeSessionId" value="fae31759-0272-44e1-8439-2e6b574ae161" />
+    <option name="activeSessionId" value="adc57453-8d4c-44d2-bbb2-9040985ff3cf" />
     <option name="openSessionIds">
       <list>
-        <option value="fae31759-0272-44e1-8439-2e6b574ae161" />
+        <option value="adc57453-8d4c-44d2-bbb2-9040985ff3cf" />
       </list>
     </option>
     <option name="sessionPaths">
       <map>
-        <entry key="fae31759-0272-44e1-8439-2e6b574ae161" value="/sessions/08890fb1-edf6-4e6b-9546-2af817ef7361" />
+        <entry key="adc57453-8d4c-44d2-bbb2-9040985ff3cf" value="/sessions/4d922626-96b4-4cdb-86b9-561d0f75145d" />
       </map>
     </option>
     <option name="sessionTitles">
       <map>
-        <entry key="fae31759-0272-44e1-8439-2e6b574ae161" value="Mọi api đến ứng dụng này đều đi qua hàm preHandle" />
+        <entry key="adc57453-8d4c-44d2-bbb2-9040985ff3cf" value="Đây là 1 dự án microservice spring boot java, hiện" />
       </map>
     </option>
   </component>
