@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "role": { "type": ["string", "null"] },
+    "active": { "type": ["boolean", "null"] },
+    "keyword": { "type": ["string", "null"] }
+  }
+}

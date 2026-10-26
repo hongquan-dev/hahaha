@@ -1,70 +1,90 @@
 {
   "info": {
     "name": "fd-auth-service",
-    "description": "API test của auth service. Validator (TestValidator.validateItem) in ra log mọi thông tin lấy được: path variable, query param, header, body.",
+    "description": "API test của auth service: admin tìm user. Validator (TestValidator.validateUserSearch) lấy thông tin từ path variable, query param, header, body và kiểm tra admin trong DB. Khi bị từ chối, lý do cụ thể nằm trong log ([VALIDATE] Rejected: ...).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8081" }
+    { "key": "baseUrl", "value": "http://localhost:8081" },
+    { "key": "adminId", "value": "1" }
   ],
   "item": [
     {
-      "name": "Test - Create item (path + query + header + body)",
+      "name": "Test - Search users (đủ bộ lọc)",
       "request": {
         "method": "POST",
         "header": [
           { "key": "Content-Type", "value": "application/json" },
-          { "key": "X-Client-Id", "value": "mobile-app" },
-          { "key": "X-Request-Id", "value": "{{$guid}}" },
-          { "key": "Authorization", "value": "Bearer test-token-123" }
+          { "key": "X-Client-Id", "value": "web-portal" }
         ],
         "url": {
-          "raw": "{{baseUrl}}/auth/test/users/:userId/items?source=web&lang=vi",
+          "raw": "{{baseUrl}}/auth/test/admins/:adminId/users/search?page=0&size=10",
           "host": ["{{baseUrl}}"],
-          "path": ["auth", "test", "users", ":userId", "items"],
+          "path": ["auth", "test", "admins", ":adminId", "users", "search"],
           "query": [
-            { "key": "source", "value": "web" },
-            { "key": "lang", "value": "vi" }
+            { "key": "page", "value": "0", "description": "Bắt đầu từ 0, mặc định 0" },
+            { "key": "size", "value": "10", "description": "1-100, mặc định 10" }
           ],
           "variable": [
-            { "key": "userId", "value": "42", "description": "Path variable {userId}" }
+            { "key": "adminId", "value": "{{adminId}}", "description": "Phải là user đang active, role ADMIN" }
           ]
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Phở bò\",\n  \"price\": 35000\n}",
+          "raw": "{\n  \"role\": \"CUSTOMER\",\n  \"active\": true,\n  \"keyword\": \"nguyen\"\n}",
           "options": { "raw": { "language": "json" } }
         },
-        "description": "Body phải đúng schemas/test-item.json: có đủ name (string) và price (number), không có field lạ."
+        "description": "Body theo schemas/user-search.json: role (string), active (boolean), keyword (string, tối đa 50 ký tự), đều không bắt buộc. Không có field lạ."
       }
     },
     {
-      "name": "Test - Create item (query param lặp lại, giá trị có dấu/khoảng trắng)",
+      "name": "Test - Search users (không lọc, phân trang mặc định)",
       "request": {
         "method": "POST",
         "header": [
           { "key": "Content-Type", "value": "application/json" },
-          { "key": "x-client-id", "value": "web-portal" }
+          { "key": "X-Client-Id", "value": "mobile-app" }
         ],
         "url": {
-          "raw": "{{baseUrl}}/auth/test/users/:userId/items?tag=hot&tag=new&note=giao nhanh",
+          "raw": "{{baseUrl}}/auth/test/admins/:adminId/users/search",
           "host": ["{{baseUrl}}"],
-          "path": ["auth", "test", "users", ":userId", "items"],
-          "query": [
-            { "key": "tag", "value": "hot" },
-            { "key": "tag", "value": "new" },
-            { "key": "note", "value": "giao nhanh" }
-          ],
+          "path": ["auth", "test", "admins", ":adminId", "users", "search"],
           "variable": [
-            { "key": "userId", "value": "user 01", "description": "Có khoảng trắng để xem giá trị đã được URL-decode" }
+            { "key": "adminId", "value": "{{adminId}}" }
           ]
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Bún chả\",\n  \"price\": 40000\n}",
+          "raw": "{}",
           "options": { "raw": { "language": "json" } }
         },
-        "description": "Không có query param source. Header viết thường x-client-id vẫn đọc được bằng getHeader(\"X-Client-Id\")."
+        "description": "Body vẫn phải là JSON ({}), vì route có schema."
+      }
+    },
+    {
+      "name": "Test - Search users (thiếu X-Client-Id -> 400)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/test/admins/:adminId/users/search?size=500",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "test", "admins", ":adminId", "users", "search"],
+          "query": [
+            { "key": "size", "value": "500" }
+          ],
+          "variable": [
+            { "key": "adminId", "value": "{{adminId}}" }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "description": "Bị từ chối với 400 REQUEST_VALIDATION_FAILED. Log: [VALIDATE] Rejected: missing header X-Client-Id."
       }
     }
   ]

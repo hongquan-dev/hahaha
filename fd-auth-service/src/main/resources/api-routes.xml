@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <routes>
-    <!-- API test: validator lấy thông tin từ path variable, query param, header và body -->
+    <!-- API test: admin tìm user. Validator lấy thông tin từ path variable, query param, header, body và truy vấn DB -->
     <route>
         <method>POST</method>
-        <path>/auth/test/users/{userId}/items</path>
-        <schema>schemas/test-item.json</schema>
-        <validator>com.fooddelivery.auth.validation.TestValidator.validateItem</validator>
+        <path>/auth/test/admins/{adminId}/users/search</path>
+        <schema>schemas/user-search.json</schema>
+        <validator>com.fooddelivery.auth.validation.TestValidator.validateUserSearch</validator>
         <controller>TestController</controller>
     </route>
 </routes>
