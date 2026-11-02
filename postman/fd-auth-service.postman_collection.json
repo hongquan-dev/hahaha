@@ -1,90 +1,80 @@
 {
   "info": {
     "name": "fd-auth-service",
-    "description": "API test của auth service: admin tìm user. Validator (TestValidator.validateUserSearch) lấy thông tin từ path variable, query param, header, body và kiểm tra admin trong DB. Khi bị từ chối, lý do cụ thể nằm trong log ([VALIDATE] Rejected: ...).",
+    "description": "API sản phẩm của auth service (dữ liệu test). Validator: ProductValidator. Khi bị từ chối (400 REQUEST_VALIDATION_FAILED), lý do cụ thể nằm trong log ([VALIDATE] Rejected: ...).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:8081" },
-    { "key": "adminId", "value": "1" }
+    { "key": "productId", "value": "1" }
   ],
   "item": [
     {
-      "name": "Test - Search users (đủ bộ lọc)",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "X-Client-Id", "value": "web-portal" }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/auth/test/admins/:adminId/users/search?page=0&size=10",
-          "host": ["{{baseUrl}}"],
-          "path": ["auth", "test", "admins", ":adminId", "users", "search"],
-          "query": [
-            { "key": "page", "value": "0", "description": "Bắt đầu từ 0, mặc định 0" },
-            { "key": "size", "value": "10", "description": "1-100, mặc định 10" }
-          ],
-          "variable": [
-            { "key": "adminId", "value": "{{adminId}}", "description": "Phải là user đang active, role ADMIN" }
-          ]
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"role\": \"CUSTOMER\",\n  \"active\": true,\n  \"keyword\": \"nguyen\"\n}",
-          "options": { "raw": { "language": "json" } }
-        },
-        "description": "Body theo schemas/user-search.json: role (string), active (boolean), keyword (string, tối đa 50 ký tự), đều không bắt buộc. Không có field lạ."
-      }
-    },
-    {
-      "name": "Test - Search users (không lọc, phân trang mặc định)",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "X-Client-Id", "value": "mobile-app" }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/auth/test/admins/:adminId/users/search",
-          "host": ["{{baseUrl}}"],
-          "path": ["auth", "test", "admins", ":adminId", "users", "search"],
-          "variable": [
-            { "key": "adminId", "value": "{{adminId}}" }
-          ]
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{}",
-          "options": { "raw": { "language": "json" } }
-        },
-        "description": "Body vẫn phải là JSON ({}), vì route có schema."
-      }
-    },
-    {
-      "name": "Test - Search users (thiếu X-Client-Id -> 400)",
+      "name": "Product - Create (không có tham số URL)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    pm.collectionVariables.set('productId', pm.response.json().data.id);",
+              "}"
+            ]
+          }
+        }
+      ],
       "request": {
         "method": "POST",
         "header": [
           { "key": "Content-Type", "value": "application/json" }
         ],
         "url": {
-          "raw": "{{baseUrl}}/auth/test/admins/:adminId/users/search?size=500",
+          "raw": "{{baseUrl}}/auth/products",
           "host": ["{{baseUrl}}"],
-          "path": ["auth", "test", "admins", ":adminId", "users", "search"],
-          "query": [
-            { "key": "size", "value": "500" }
-          ],
-          "variable": [
-            { "key": "adminId", "value": "{{adminId}}" }
-          ]
+          "path": ["auth", "products"]
         },
         "body": {
           "mode": "raw",
-          "raw": "{}",
+          "raw": "{\n  \"name\": \"Phở bò\",\n  \"category\": \"FOOD\",\n  \"price\": 45000\n}",
           "options": { "raw": { "language": "json" } }
         },
-        "description": "Bị từ chối với 400 REQUEST_VALIDATION_FAILED. Log: [VALIDATE] Rejected: missing header X-Client-Id."
+        "description": "Body theo schemas/create-product.json: name (string, 1-100 ký tự, không trùng), category (FOOD/DRINK/DESSERT), price (number > 0, tối đa 2 chữ số thập phân). Tạo thành công thì productId của collection được gán bằng id vừa tạo."
+      }
+    },
+    {
+      "name": "Product - Create (category sai -> 400)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/products",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "products"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Trà đá\",\n  \"category\": \"OTHER\",\n  \"price\": 5000\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "description": "Bị từ chối với 400 REQUEST_VALIDATION_FAILED. Log: [VALIDATE] Rejected: category must be one of ..."
+      }
+    },
+    {
+      "name": "Product - Get by id (có tham số URL)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/auth/products/:productId",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "products", ":productId"],
+          "variable": [
+            { "key": "productId", "value": "{{productId}}", "description": "Số nguyên dương, phải tồn tại trong DB" }
+          ]
+        },
+        "description": "Không có body. Id không phải số hoặc không tồn tại -> 400 REQUEST_VALIDATION_FAILED."
       }
     }
   ]

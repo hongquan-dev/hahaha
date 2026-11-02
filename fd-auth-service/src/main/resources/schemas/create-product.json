@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "required": ["name", "category", "price"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string" },
+    "category": { "type": "string" },
+    "price": { "type": "number" },
+    "test": { "type": "number" }
+  }
+}

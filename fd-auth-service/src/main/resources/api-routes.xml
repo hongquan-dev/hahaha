@@ -1,11 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <routes>
-    <!-- API test: admin tìm user. Validator lấy thông tin từ path variable, query param, header, body và truy vấn DB -->
+    <!-- API không có tham số trên URL: tạo sản phẩm. Schema kiểm tra cấu trúc body, validator kiểm tra giá trị và trùng tên trong DB -->
     <route>
         <method>POST</method>
-        <path>/auth/test/admins/{adminId}/users/search</path>
-        <schema>schemas/user-search.json</schema>
-        <validator>com.fooddelivery.auth.validation.TestValidator.validateUserSearch</validator>
-        <controller>TestController</controller>
+        <path>/auth/products/{object-id}</path>
+        <schema>schemas/create-product.json</schema>
+        <validator>com.fooddelivery.auth.validation.ProductValidator.validateCreateProduct</validator>
+        <controller>ProductController</controller>
+    </route>
+
+    <!-- API có tham số trên URL: xem chi tiết sản phẩm. Không có body nên không có schema; validator kiểm tra productId và tồn tại trong DB -->
+    <route>
+        <method>GET</method>
+        <path>/auth/products/{productId}</path>
+        <validator>com.fooddelivery.auth.validation.ProductValidator.validateGetProduct</validator>
+        <controller>ProductController</controller>
     </route>
 </routes>
