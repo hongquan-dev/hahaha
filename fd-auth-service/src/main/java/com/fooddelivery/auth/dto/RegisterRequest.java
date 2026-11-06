@@ -1,6 +1,6 @@
 package com.fooddelivery.auth.dto;
 
-import java.util.Locale;
+import com.fooddelivery.auth.common.util.IdentifierNormalizer;
 
 /**
  * Body of {@code POST /auth/register}, read with {@code request.getBody(RegisterRequest.class)}.
@@ -23,31 +23,10 @@ public record RegisterRequest(
         String phoneNumber
 ) {
     // Copy with username and email trimmed and lowercased, and the phone number as +84xxxxxxxxx, e.g.
-    // " Quan@Gmail.com " -> "quan@gmail.com", "0912.345.678" -> "+84912345678". Null fields stay null
+    // " Quan@Gmail.com " -> "quan@gmail.com", "0912.345.678" -> "+84912345678". Null fields stay null. Uses
+    // IdentifierNormalizer, like login, so an account is found again with what was typed at registration
     public RegisterRequest normalized() {
-        return new RegisterRequest(lowerTrim(username), password, lowerTrim(email), normalizePhone(phoneNumber));
-    }
-
-    private static String lowerTrim(String value) {
-        return value == null ? null : value.trim().toLowerCase(Locale.ROOT);
-    }
-
-    // Removes separators, then turns a leading "0" or "84" into "+84". A value it does not recognize is returned
-    // without separators, for the validator to reject
-    private static String normalizePhone(String value) {
-        if (value == null) {
-            return null;
-        }
-        String digits = value.replaceAll("[\\s.\\-()]", "");
-        if (digits.startsWith("+84")) {
-            return digits;
-        }
-        if (digits.startsWith("84") && digits.length() == 11) {
-            return "+" + digits;
-        }
-        if (digits.startsWith("0") && digits.length() == 10) {
-            return "+84" + digits.substring(1);
-        }
-        return digits;
+        return new RegisterRequest(IdentifierNormalizer.lowerTrim(username), password,
+                IdentifierNormalizer.lowerTrim(email), IdentifierNormalizer.normalizePhone(phoneNumber));
     }
 }

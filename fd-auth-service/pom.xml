@@ -25,5 +25,27 @@
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-crypto</artifactId>
         </dependency>
+
+        <!-- Signs and verifies the RS256 access tokens and builds the JWKS other services use to verify them.
+             Not managed by the Spring Boot BOM, hence the explicit version -->
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>10.10</version>
+        </dependency>
+
+        <!-- JUnit 5 and AssertJ for unit tests, e.g. TokenServiceTest. Its Logback starter is excluded, as in
+             common-lib: the service logs with Log4j2 and both on the classpath fail at the first logger -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
     </dependencies>
 </project>

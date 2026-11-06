@@ -1,6 +1,8 @@
 package com.fooddelivery.auth.validation;
 
 import com.fooddelivery.apiflow.request.ApiRequest;
+import com.fooddelivery.auth.common.util.IdentifierNormalizer;
+import com.fooddelivery.auth.dto.LoginRequest;
 import com.fooddelivery.auth.dto.RegisterRequest;
 import com.fooddelivery.web.exception.BusinessException;
 import com.fooddelivery.web.model.FieldErrorDetail;
@@ -34,8 +36,6 @@ public class AuthValidator {
     // Catches common typos only; proving that the address exists needs a verification email
     private static final Pattern EMAIL = Pattern.compile("^[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}$");
     private static final int MAX_EMAIL_LENGTH = 254;
-    // Vietnamese mobile prefixes 03, 05, 07, 08, 09, after normalization to +84, e.g. "+84912345678"
-    private static final Pattern PHONE = Pattern.compile("^\\+84[35789]\\d{8}$");
     private static final int MIN_PASSWORD_LENGTH = 8;
     private static final int MAX_PASSWORD_LENGTH = 64;
     // BCrypt ignores everything after byte 72, so a longer password would be silently truncated. A character can take
@@ -83,13 +83,50 @@ public class AuthValidator {
 
         if (isBlank(body.phoneNumber())) {
             errors.add(new FieldErrorDetail("phoneNumber", "Phone number is required"));
-        } else if (!PHONE.matcher(body.phoneNumber()).matches()) {
+        } else if (!IdentifierNormalizer.isPhone(body.phoneNumber())) {
             errors.add(new FieldErrorDetail("phoneNumber", "Phone number must be a Vietnamese mobile number"));
         }
 
         if (!errors.isEmpty()) {
             throw new BusinessException(ApiStatus.BAD_REQUEST, "INVALID_REGISTER_INFO", "Registration info is invalid",
                     errors);
+        }
+        return true;
+    }
+
+    /**
+     * Validator of {@code POST /auth/login} ({@code <validator>} in {@code api-routes.xml}).
+     *
+     * <p>{@code schemas/login.json} has already checked that the body has the two string fields and nothing else.
+     * Only presence and length are checked: the format of the identifier does not matter (a wrong one simply matches
+     * no account), and the password rules of registration are not applied, so an account created under older rules
+     * can still log in. The length limits keep oversized input away from BCrypt. Errors are thrown once as
+     * {@code BusinessException} 400 {@code INVALID_LOGIN_INFO}.
+     *
+     * @param request the request, with a JSON body
+     * @return {@code true} if the body is valid; never {@code false}, an invalid body throws instead
+     */
+    public boolean validateLogin(ApiRequest request) {
+        LoginRequest body = request.getBody(LoginRequest.class);
+        // The password is never logged
+        log.info("[VALIDATE] [{}] {} | identifier={}", request.getMethod(), request.getPath(), body.identifier());
+
+        List<FieldErrorDetail> errors = new ArrayList<>();
+        if (isBlank(body.identifier())) {
+            errors.add(new FieldErrorDetail("identifier", "Username, email or phone number is required"));
+        } else if (body.identifier().trim().length() > MAX_EMAIL_LENGTH) {
+            errors.add(new FieldErrorDetail("identifier",
+                    "Username, email or phone number must be at most " + MAX_EMAIL_LENGTH + " characters"));
+        }
+
+        if (isBlank(body.password())) {
+            errors.add(new FieldErrorDetail("password", "Password is required"));
+        } else if (body.password().getBytes(StandardCharsets.UTF_8).length > MAX_PASSWORD_BYTES) {
+            errors.add(new FieldErrorDetail("password", "Password is too long"));
+        }
+
+        if (!errors.isEmpty()) {
+            throw new BusinessException(ApiStatus.BAD_REQUEST, "INVALID_LOGIN_INFO", "Login info is invalid", errors);
         }
         return true;
     }

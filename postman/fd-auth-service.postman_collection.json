@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "fd-auth-service",
-    "description": "API của auth service. Đăng ký: AuthValidator kiểm tra định dạng (400 INVALID_REGISTER_INFO), AuthService kiểm tra trùng (409 USER_ALREADY_EXISTS); lỗi trả kèm errors theo từng field.",
+    "description": "API của auth service. Đăng ký: AuthValidator kiểm tra định dạng (400 INVALID_REGISTER_INFO), AuthService kiểm tra trùng (409 USER_ALREADY_EXISTS); lỗi trả kèm errors theo từng field. Đăng nhập: token chỉ nằm trong cookie HttpOnly access_token (Path=/, 15 phút) và refresh_token (Path=/auth, 7 ngày, tối đa 30 ngày/phiên); Postman tự lưu và gửi lại cookie theo domain. Chạy theo thứ tự: Register -> Login -> Me -> Refresh -> Me -> Logout -> Me. Postman không gửi header Origin nên không bị OriginCheckFilter chặn. Nếu Postman không gửi lại cookie Secure qua http, chạy service với auth.cookie.secure=false.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -126,6 +126,172 @@
           }
         },
         "description": "400 INVALID_REGISTER_INFO, errors liệt kê lý do của từng field sai."
+      }
+    },
+    {
+      "name": "Auth - Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Đăng nhập bằng username, email hoặc SĐT (0xxx / 84xxx / +84xxx, có dấu chấm/cách đều được) qua field identifier. Dùng tài khoản vừa tạo ở 'Auth - Register'. 200 trả user trong data và 2 header Set-Cookie (access_token, refresh_token); token không bao giờ nằm trong body.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"{{registerUsername}}\",\n  \"password\": \"MatKhau@123\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 và có 2 cookie', () => {",
+              "  pm.response.to.have.status(200);",
+              "  const cookies = pm.response.headers.filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value);",
+              "  pm.expect(cookies.some(v => v.startsWith('access_token='))).to.be.true;",
+              "  pm.expect(cookies.some(v => v.startsWith('refresh_token='))).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Login (sai mật khẩu -> 401)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        },
+        "description": "401 INVALID_CREDENTIALS. Tài khoản không tồn tại cũng trả đúng lỗi này và tốn thời gian tương đương, để không lộ tài khoản nào có thật. Tài khoản bị khoá (active=false) mà đúng mật khẩu -> 403 ACCOUNT_DISABLED.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"{{registerUsername}}\",\n  \"password\": \"SaiMatKhau@1\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Auth - Login (thiếu giá trị -> 400)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        },
+        "description": "400 INVALID_LOGIN_INFO, errors theo từng field. Thiếu hẳn field hoặc có field lạ -> 400 INVALID_REQUEST_BODY (schema).",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"  \",\n  \"password\": \"\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Auth - Me",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/auth/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "me"
+          ]
+        },
+        "description": "User của cookie access_token. 200 nếu còn đăng nhập; 401 TOKEN_EXPIRED nếu access token hết hạn (gọi 'Auth - Refresh' rồi gọi lại); 401 UNAUTHENTICATED nếu không có cookie hoặc token sai."
+      }
+    },
+    {
+      "name": "Auth - Refresh",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/auth/refresh",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "refresh"
+          ]
+        },
+        "description": "Không có body. Dùng cookie refresh_token để cấp cặp cookie mới (rotation: token cũ bị thu hồi). 200, data = null. Gửi lại token cũ trong 10 giây -> 409 REFRESH_CONFLICT (coi như 2 tab refresh cùng lúc); sau 10 giây -> 401 REFRESH_TOKEN_REUSED và cả phiên bị thu hồi. Token không hợp lệ / hết hạn -> 401 REFRESH_TOKEN_INVALID. Mọi lỗi 401 đều kèm Set-Cookie xoá 2 cookie."
+      }
+    },
+    {
+      "name": "Auth - Logout",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/auth/logout",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "logout"
+          ]
+        },
+        "description": "Không có body. Thu hồi phiên của cookie refresh_token và xoá 2 cookie (Max-Age=0). Luôn 200, kể cả khi không có cookie. Gọi 'Auth - Me' sau đó -> 401 UNAUTHENTICATED."
       }
     }
   ]

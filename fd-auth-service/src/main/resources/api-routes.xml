@@ -9,4 +9,38 @@
         <validator>com.fooddelivery.auth.validation.AuthValidator.validateRegister</validator>
         <controller>com.fooddelivery.auth.controller.AuthController</controller>
     </route>
+
+    <!-- Login with a username, email or phone number; sets the access_token and refresh_token cookies. The schema
+         checks the body structure, the validator only presence and length; the account and password are checked by
+         AuthService -->
+    <route>
+        <method>POST</method>
+        <path>/auth/login</path>
+        <schema>schemas/login.json</schema>
+        <validator>com.fooddelivery.auth.validation.AuthValidator.validateLogin</validator>
+        <controller>com.fooddelivery.auth.controller.AuthController</controller>
+    </route>
+
+    <!-- Current user of the access_token cookie. No body, so no schema or validator; the token is checked by
+         AuthService -->
+    <route>
+        <method>GET</method>
+        <path>/auth/me</path>
+        <controller>com.fooddelivery.auth.controller.AuthController</controller>
+    </route>
+
+    <!-- Renews both cookies from the refresh_token cookie (rotation). No body, so no schema or validator; the token is
+         checked by SessionService -->
+    <route>
+        <method>POST</method>
+        <path>/auth/refresh</path>
+        <controller>com.fooddelivery.auth.controller.AuthController</controller>
+    </route>
+
+    <!-- Ends the session of the refresh_token cookie and clears both cookies. No body, so no schema or validator -->
+    <route>
+        <method>POST</method>
+        <path>/auth/logout</path>
+        <controller>com.fooddelivery.auth.controller.AuthController</controller>
+    </route>
 </routes>

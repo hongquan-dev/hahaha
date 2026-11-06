@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "required": ["identifier", "password"],
+  "additionalProperties": false,
+  "properties": {
+    "identifier": { "type": "string" },
+    "password": { "type": "string" }
+  }
+}

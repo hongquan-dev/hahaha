@@ -12,7 +12,13 @@ import java.util.Optional;
  */
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
+    // Login lookups (AuthService.login), by the identifier the user typed
     Optional<User> findByUsername(String username);
+
+    Optional<User> findByEmail(String email);
+
+    // First match: phone_number has no unique constraint, so a registration race could leave two rows
+    Optional<User> findFirstByPhoneNumber(String phoneNumber);
 
     // Duplicate checks at registration (AuthService.register)
     boolean existsByUsername(String username);
