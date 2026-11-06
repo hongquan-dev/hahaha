@@ -1,80 +1,131 @@
 {
   "info": {
     "name": "fd-auth-service",
-    "description": "API sản phẩm của auth service (dữ liệu test). Validator: ProductValidator. Khi bị từ chối (400 REQUEST_VALIDATION_FAILED), lý do cụ thể nằm trong log ([VALIDATE] Rejected: ...).",
+    "description": "API của auth service. Đăng ký: AuthValidator kiểm tra định dạng (400 INVALID_REGISTER_INFO), AuthService kiểm tra trùng (409 USER_ALREADY_EXISTS); lỗi trả kèm errors theo từng field.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8081" },
-    { "key": "productId", "value": "1" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8081"
+    },
+    {
+      "key": "registerUsername",
+      "value": ""
+    },
+    {
+      "key": "registerPhone",
+      "value": ""
+    }
   ],
   "item": [
     {
-      "name": "Product - Create (không có tham số URL)",
+      "name": "Auth - Register",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "register"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{registerUsername}}\",\n  \"password\": \"MatKhau@123\",\n  \"email\": \"{{registerUsername}}@gmail.com\",\n  \"phoneNumber\": \"{{registerPhone}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "description": "Body theo schemas/register.json: username (3-30 ký tự a-z 0-9 . _), password (8-64 ký tự, có chữ hoa, chữ thường, chữ số, ký tự đặc biệt), email, phoneNumber (SĐT di động VN, nhận 0xxx / 84xxx / +84xxx). Pre-request script sinh username/SĐT ngẫu nhiên để chạy lại nhiều lần không bị trùng. 201 trả thông tin user, role luôn là CUSTOMER."
+      },
       "event": [
         {
-          "listen": "test",
+          "listen": "prerequest",
           "script": {
             "type": "text/javascript",
             "exec": [
-              "if (pm.response.code === 201) {",
-              "    pm.collectionVariables.set('productId', pm.response.json().data.id);",
-              "}"
+              "const n = Date.now().toString().slice(-8);",
+              "pm.collectionVariables.set('registerUsername', 'user' + n);",
+              "pm.collectionVariables.set('registerPhone', '09' + n);"
             ]
           }
         }
-      ],
+      ]
+    },
+    {
+      "name": "Auth - Register (trùng -> 409)",
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "url": {
-          "raw": "{{baseUrl}}/auth/products",
-          "host": ["{{baseUrl}}"],
-          "path": ["auth", "products"]
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"Phở bò\",\n  \"category\": \"FOOD\",\n  \"price\": 45000\n}",
-          "options": { "raw": { "language": "json" } }
-        },
-        "description": "Body theo schemas/create-product.json: name (string, 1-100 ký tự, không trùng), category (FOOD/DRINK/DESSERT), price (number > 0, tối đa 2 chữ số thập phân). Tạo thành công thì productId của collection được gán bằng id vừa tạo."
-      }
-    },
-    {
-      "name": "Product - Create (category sai -> 400)",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/auth/products",
-          "host": ["{{baseUrl}}"],
-          "path": ["auth", "products"]
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"Trà đá\",\n  \"category\": \"OTHER\",\n  \"price\": 5000\n}",
-          "options": { "raw": { "language": "json" } }
-        },
-        "description": "Bị từ chối với 400 REQUEST_VALIDATION_FAILED. Log: [VALIDATE] Rejected: category must be one of ..."
-      }
-    },
-    {
-      "name": "Product - Get by id (có tham số URL)",
-      "request": {
-        "method": "GET",
-        "url": {
-          "raw": "{{baseUrl}}/auth/products/:productId",
-          "host": ["{{baseUrl}}"],
-          "path": ["auth", "products", ":productId"],
-          "variable": [
-            { "key": "productId", "value": "{{productId}}", "description": "Số nguyên dương, phải tồn tại trong DB" }
+          "raw": "{{baseUrl}}/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "register"
           ]
         },
-        "description": "Không có body. Id không phải số hoặc không tồn tại -> 400 REQUEST_VALIDATION_FAILED."
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{registerUsername}}\",\n  \"password\": \"MatKhau@123\",\n  \"email\": \"{{registerUsername}}@gmail.com\",\n  \"phoneNumber\": \"{{registerPhone}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "description": "Chạy sau 'Auth - Register': dùng lại username/email/SĐT vừa tạo -> 409 USER_ALREADY_EXISTS, errors liệt kê từng field bị trùng."
+      }
+    },
+    {
+      "name": "Auth - Register (sai định dạng -> 400)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "register"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"a b\",\n  \"password\": \"short\",\n  \"email\": \"abc\",\n  \"phoneNumber\": \"123\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "description": "400 INVALID_REGISTER_INFO, errors liệt kê lý do của từng field sai."
       }
     }
   ]

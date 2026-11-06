@@ -14,13 +14,13 @@
     <description>Spring Cloud Gateway</description>
 
     <dependencies>
-        <!-- Spring Cloud Gateway đã bao gồm WebFlux (Reactive) -->
+        <!-- Spring Cloud Gateway already includes WebFlux (reactive) -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-gateway</artifactId>
         </dependency>
 
-        <!-- Thêm log4j2 vào gateway nếu muốn đồng bộ cấu hình log chung -->
+        <!-- Log4j2, so the gateway logs like the other services -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-log4j2</artifactId>

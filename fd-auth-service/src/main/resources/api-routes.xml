@@ -1,19 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <routes>
-    <!-- API không có tham số trên URL: tạo sản phẩm. Schema kiểm tra cấu trúc body, validator kiểm tra giá trị và trùng tên trong DB -->
+    <!-- Registration. The schema checks the body structure, the validator checks required fields and format
+         (no database query); duplicate username/email/phone number are checked by AuthService -->
     <route>
         <method>POST</method>
-        <path>/auth/products/{object-id}</path>
-        <schema>schemas/create-product.json</schema>
-        <validator>com.fooddelivery.auth.validation.ProductValidator.validateCreateProduct</validator>
-        <controller>ProductController</controller>
-    </route>
-
-    <!-- API có tham số trên URL: xem chi tiết sản phẩm. Không có body nên không có schema; validator kiểm tra productId và tồn tại trong DB -->
-    <route>
-        <method>GET</method>
-        <path>/auth/products/{productId}</path>
-        <validator>com.fooddelivery.auth.validation.ProductValidator.validateGetProduct</validator>
-        <controller>ProductController</controller>
+        <path>/auth/register</path>
+        <schema>schemas/register.json</schema>
+        <validator>com.fooddelivery.auth.validation.AuthValidator.validateRegister</validator>
+        <controller>com.fooddelivery.auth.controller.AuthController</controller>
     </route>
 </routes>

@@ -6,7 +6,6 @@
     "username": { "type": "string" },
     "password": { "type": "string" },
     "email": { "type": "string" },
-    "phoneNumber": { "type": "string" },
-    "phoneNumberTest": { "type": "string" }
+    "phoneNumber": { "type": "string" }
   }
 }

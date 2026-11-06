@@ -2,7 +2,7 @@
 <Configuration status="WARN">
     <Properties>
         <!-- Log interface -->
-        <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss} [${spring:spring.application.name}] %-5level %logger{36} - %msg%n</Property>
+        <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss} [${spring:spring.application.name}] %level %logger{36} - %msg%n</Property>
     </Properties>
 
     <Appenders>

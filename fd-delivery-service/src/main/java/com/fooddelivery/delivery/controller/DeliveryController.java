@@ -4,6 +4,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Health check of the delivery service: {@code GET /delivery/health} returns a plain-text message while the service
+ * is up.
+ */
 @RestController
 @RequestMapping("/delivery")
 public class DeliveryController {

@@ -53,28 +53,28 @@
             <artifactId>jackson-dataformat-xml</artifactId>
         </dependency>
 
-        <!-- Thư viện ID (Sinh và giải mã ID 14 số, EntityType) -->
+        <!-- IDs: generates and decodes 14-digit IDs (IdUtils, EntityType) -->
         <dependency>
             <groupId>com.fooddelivery</groupId>
             <artifactId>common-id-lib</artifactId>
             <version>${food-delivery-libs.version}</version>
         </dependency>
 
-        <!-- Thư viện DTO (Base Response, phân trang,...) -->
+        <!-- Shared DTOs -->
         <dependency>
             <groupId>com.fooddelivery</groupId>
             <artifactId>common-dto-lib</artifactId>
             <version>${food-delivery-libs.version}</version>
         </dependency>
 
-        <!-- Thư viện Web (Nếu có dùng chung cấu hình Web, Exception Handler,...) -->
+        <!-- Web: ApiResponse, ResponseHandler, BusinessException, GlobalExceptionHandler -->
         <dependency>
             <groupId>com.fooddelivery</groupId>
             <artifactId>common-web-lib</artifactId>
             <version>${food-delivery-libs.version}</version>
         </dependency>
 
-        <!-- Luồng xác thực API: đăng ký route (api-routes.xml), check schema, gọi validator. Service phải có api-routes.xml -->
+        <!-- API flow: route allow list (api-routes.xml), JSON Schema check, validator call. Every service needs an api-routes.xml -->
         <dependency>
             <groupId>com.fooddelivery</groupId>
             <artifactId>common-api-flow-lib</artifactId>

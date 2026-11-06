@@ -4,6 +4,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Health check of the order service: {@code GET /order/health} returns a plain-text message while the service is up.
+ */
 @RestController
 @RequestMapping("/order")
 public class OrderController {

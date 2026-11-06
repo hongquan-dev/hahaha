@@ -4,6 +4,13 @@ import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 
+/**
+ * Account of a person using the app, stored in the {@code users} table (created and updated by Hibernate,
+ * {@code ddl-auto=update}).
+ *
+ * <p>The ID has no generated value: the caller assigns it with {@code IdUtils.generate(EntityType.USER)}.
+ * {@code createdAt} and {@code updatedAt} are set by the JPA callbacks, never by the caller.
+ */
 @Entity
 @Table(name = "users")
 public class User {
@@ -12,18 +19,23 @@ public class User {
     @Column(name = "id", unique = true, nullable = false)
     private Long id;
 
+    // Lowercase, e.g. "quan.nguyen"
     @Column(name = "username", unique = true, nullable = false)
     private String username;
 
+    // BCrypt hash, e.g. "$2a$10$...", never the raw password
     @Column(name = "password", nullable = false)
     private String password;
 
+    // Lowercase
     @Column(name = "email", unique = true)
     private String email;
 
+    // As +84xxxxxxxxx. Not unique in the table; duplicates are rejected by AuthService
     @Column(name = "phone_number")
     private String phoneNumber;
 
+    // e.g. "CUSTOMER". Set by the server, never taken from a request
     @Column(name = "role")
     private String role;
 
@@ -36,7 +48,6 @@ public class User {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Constructors
     public User() {}
 
     public User(Long id, String username, String password, String email, String phoneNumber, String role) {
@@ -48,7 +59,6 @@ public class User {
         this.role = role;
     }
 
-    // Lifecycle callbacks
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();
@@ -61,7 +71,6 @@ public class User {
         this.updatedAt = LocalDateTime.now();
     }
 
-    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
