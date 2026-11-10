@@ -62,8 +62,8 @@ Mọi type public đều có Javadoc (kể cả `*Application` và controller he
 
 ```java
 /**
- * Account of a person using the app, stored in the {@code users} table (created and updated by Hibernate,
- * {@code ddl-auto=update}).
+ * Account of a person using the app, stored in the {@code users} table (created by the Flyway migrations in
+ * {@code db/migration}, checked by Hibernate with {@code ddl-auto=validate}).
  *
  * <p>The ID has no generated value: the caller assigns it with {@code IdUtils.generate(EntityType.USER)}.
  */

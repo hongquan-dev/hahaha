@@ -80,6 +80,33 @@
             <artifactId>common-api-flow-lib</artifactId>
             <version>${food-delivery-libs.version}</version>
         </dependency>
+
+        <!-- BCryptPasswordEncoder only, without Spring Security's filter chain -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+
+        <!-- Signs and verifies the RS256 access tokens and builds the JWKS other services use to verify them.
+             Not managed by the Spring Boot BOM, hence the explicit version -->
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>10.10</version>
+        </dependency>
+
+        <!-- Database migrations: runs the SQL files in src/main/resources/db/migration of each service at startup,
+             before Hibernate. Only active in a service with a DataSource; a service without that folder only gets a
+             warning. Flyway 10 moved PostgreSQL support out of flyway-core, so both are needed. Versions come from
+             the Spring Boot BOM -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
     </dependencies>
 
     <repositories>

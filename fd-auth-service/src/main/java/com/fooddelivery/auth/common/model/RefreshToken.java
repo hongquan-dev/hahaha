@@ -5,8 +5,9 @@ import jakarta.persistence.*;
 import java.time.Instant;
 
 /**
- * Refresh token of one login session, stored in the {@code refresh_tokens} table (created and updated by Hibernate,
- * {@code ddl-auto=update}). Only its SHA-256 hash is stored; the raw token lives in the {@code refresh_token} cookie.
+ * Refresh token of one login session, stored in the {@code refresh_tokens} table (created by the Flyway migrations in
+ * {@code db/migration}, checked by Hibernate with {@code ddl-auto=validate}). Only its SHA-256 hash is stored; the
+ * raw token lives in the {@code refresh_token} cookie.
  *
  * <p>Every refresh revokes the current row and adds a new one with the same {@code familyId}, so a family is the
  * chain of tokens of one login on one device. The ID has no generated value: the caller assigns it with

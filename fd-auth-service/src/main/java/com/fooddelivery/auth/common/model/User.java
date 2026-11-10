@@ -5,11 +5,12 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 /**
- * Account of a person using the app, stored in the {@code users} table (created and updated by Hibernate,
- * {@code ddl-auto=update}).
+ * Account of a person using the app, stored in the {@code users} table (created by the Flyway migrations in
+ * {@code db/migration}, checked by Hibernate with {@code ddl-auto=validate}).
  *
  * <p>The ID has no generated value: the caller assigns it with {@code IdUtils.generate(EntityType.USER)}.
- * {@code createdAt} and {@code updatedAt} are set by the JPA callbacks, never by the caller.
+ * {@code createdAt} and {@code updatedAt} are set by the JPA callbacks, never by the caller. A schema change goes in a
+ * new migration file, not only here.
  */
 @Entity
 @Table(name = "users")
@@ -39,7 +40,7 @@ public class User {
     @Column(name = "role")
     private String role;
 
-    @Column(name = "active", nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
+    @Column(name = "active", nullable = false)
     private boolean active = true;
 
     @Column(name = "created_at", updatable = false)

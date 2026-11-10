@@ -37,8 +37,8 @@ Mục lục:
 **Yêu cầu:**
 
 - Java 21, Maven.
-- PostgreSQL ở `localhost:5432` có database `FD_auth_db` (tài khoản trong `application.properties`). Hibernate tự
-  tạo/cập nhật bảng (`ddl-auto=update`).
+- PostgreSQL ở `localhost:5432` có database `FD_auth_db` (tài khoản trong `application.properties`). Bảng do
+  **Flyway** tạo lúc khởi động, xem [mục 7](#7-cơ-sở-dữ-liệu).
 - Thư viện dùng chung đã được cài vào `~/.m2`:
 
 ```bash
@@ -397,6 +397,30 @@ Trình duyệt **luôn** gửi `Origin` với các method này, nên request kh�
 - Thời gian dùng `Instant` (`timestamp with time zone`), không phụ thuộc múi giờ của server hay DB.
 - **Vì sao SHA-256 mà không phải BCrypt như mật khẩu:** token là 256 bit ngẫu nhiên nên không thể dò; và SHA-256 luôn
   cho cùng kết quả nên tìm được bằng index (BCrypt có salt ngẫu nhiên, không tìm được).
+
+### Database migration (Flyway)
+
+Schema do Flyway quản lý, **không** để Hibernate tự sửa:
+
+- File migration nằm ở `src/main/resources/db/migration`, đặt tên `V<số>__<mô_tả>.sql`, ví dụ
+  `V1__create_users_and_refresh_tokens.sql`. Lúc khởi động Flyway chạy các file chưa chạy theo thứ tự version và ghi
+  lại vào bảng `flyway_schema_history`.
+- Hibernate chạy với `ddl-auto=validate`: chỉ kiểm tra bảng/cột khớp entity, lệch thì service **từ chối khởi động**.
+- **Đổi schema** (thêm cột, thêm bảng, index...): tạo file mới với version kế tiếp (`V2__add_xxx.sql`), sửa entity cho
+  khớp. **Không sửa file đã chạy**: Flyway so checksum và từ chối khởi động nếu file cũ bị đổi.
+
+**DB cũ do Hibernate `ddl-auto=update` tạo** (có bảng nhưng chưa có `flyway_schema_history`): Flyway báo
+`Found non-empty schema(s) ... but no schema history table` và dừng. Chọn một trong hai:
+
+```bash
+# Cách 1 (khuyên dùng ở dev): xoá DB, tạo lại; Flyway tạo bảng từ V1 khi chạy service
+psql -U postgres -c 'DROP DATABASE "FD_auth_db"' -c 'CREATE DATABASE "FD_auth_db"'
+
+# Cách 2: giữ dữ liệu, đánh dấu DB hiện tại là đã ở V1 (Flyway sẽ không chạy V1 nữa)
+mvn spring-boot:run -Dspring-boot.run.arguments="--spring.flyway.baseline-on-migrate=true --spring.flyway.baseline-version=1"
+```
+
+> Cách 2 giữ nguyên các khác biệt của DB cũ so với V1 (tên constraint do Hibernate tự sinh, bảng thừa...).
 
 ---
 
