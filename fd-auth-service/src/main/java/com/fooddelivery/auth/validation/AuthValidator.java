@@ -5,8 +5,8 @@ import com.fooddelivery.auth.common.util.IdentifierNormalizer;
 import com.fooddelivery.auth.dto.LoginRequest;
 import com.fooddelivery.auth.dto.RegisterRequest;
 import com.fooddelivery.web.exception.BusinessException;
-import com.fooddelivery.web.model.FieldErrorDetail;
-import com.fooddelivery.web.status.ApiStatus;
+import com.fooddelivery.dto.response.FieldErrorDetail;
+import com.fooddelivery.dto.response.ApiStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Component;
@@ -50,9 +50,8 @@ public class AuthValidator {
      * {@code INVALID_REGISTER_INFO}, so the form can show all of them together.
      *
      * @param request the request, with a JSON body
-     * @return {@code true} if the body is valid; never {@code false}, an invalid body throws instead
      */
-    public boolean validateRegister(ApiRequest request) {
+    public void validateRegister(ApiRequest request) {
         RegisterRequest body = request.getBody(RegisterRequest.class).normalized();
         // The password is never logged
         log.info("[VALIDATE] [{}] {} | username={}, email={}, phoneNumber={}", request.getMethod(), request.getPath(),
@@ -91,7 +90,6 @@ public class AuthValidator {
             throw new BusinessException(ApiStatus.BAD_REQUEST, "INVALID_REGISTER_INFO", "Registration info is invalid",
                     errors);
         }
-        return true;
     }
 
     /**
@@ -104,9 +102,8 @@ public class AuthValidator {
      * {@code BusinessException} 400 {@code INVALID_LOGIN_INFO}.
      *
      * @param request the request, with a JSON body
-     * @return {@code true} if the body is valid; never {@code false}, an invalid body throws instead
      */
-    public boolean validateLogin(ApiRequest request) {
+    public void validateLogin(ApiRequest request) {
         LoginRequest body = request.getBody(LoginRequest.class);
         // The password is never logged
         log.info("[VALIDATE] [{}] {} | identifier={}", request.getMethod(), request.getPath(), body.identifier());
@@ -128,7 +125,6 @@ public class AuthValidator {
         if (!errors.isEmpty()) {
             throw new BusinessException(ApiStatus.BAD_REQUEST, "INVALID_LOGIN_INFO", "Login info is invalid", errors);
         }
-        return true;
     }
 
     // The schema already rejects null ("type": "string"); checked again so the validator does not depend on it.

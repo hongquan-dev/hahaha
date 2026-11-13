@@ -10,7 +10,7 @@ import com.fooddelivery.auth.service.token.TokenService;
 import com.fooddelivery.id.entity.EntityType;
 import com.fooddelivery.id.entity.IdUtils;
 import com.fooddelivery.web.exception.BusinessException;
-import com.fooddelivery.web.status.ApiStatus;
+import com.fooddelivery.dto.response.ApiStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;

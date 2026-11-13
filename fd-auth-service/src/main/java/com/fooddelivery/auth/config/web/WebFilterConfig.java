@@ -1,6 +1,6 @@
 package com.fooddelivery.auth.config.web;
 
-import com.fooddelivery.apiflow.web.response.ApiResponseWriter;
+import com.fooddelivery.web.handler.ApiResponseWriter;
 import com.fooddelivery.auth.config.properties.AuthProperties;
 import com.fooddelivery.auth.web.OriginCheckFilter;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;

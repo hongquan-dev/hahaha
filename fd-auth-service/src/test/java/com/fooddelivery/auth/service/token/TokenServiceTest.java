@@ -59,6 +59,8 @@ class TokenServiceTest {
         assertThat(result.status()).isEqualTo(AccessTokenVerification.Status.VALID);
         assertThat(result.userId()).isEqualTo(USER.getId());
         assertThat(result.role()).isEqualTo("CUSTOMER");
+        assertThat(result.issuedAt()).isEqualTo(NOW);
+        assertThat(result.expiresAt()).isEqualTo(NOW.plus(ACCESS_TTL));
     }
 
     @Test

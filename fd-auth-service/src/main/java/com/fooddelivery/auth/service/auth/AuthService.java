@@ -14,8 +14,8 @@ import com.fooddelivery.auth.service.token.TokenService;
 import com.fooddelivery.id.entity.EntityType;
 import com.fooddelivery.id.entity.IdUtils;
 import com.fooddelivery.web.exception.BusinessException;
-import com.fooddelivery.web.model.FieldErrorDetail;
-import com.fooddelivery.web.status.ApiStatus;
+import com.fooddelivery.dto.response.FieldErrorDetail;
+import com.fooddelivery.dto.response.ApiStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -141,6 +141,24 @@ public class AuthService {
      */
     @Transactional(readOnly = true)
     public UserDto currentUser(String accessToken) {
+        AccessTokenVerification verification = authenticate(accessToken);
+        return userRepository.findById(verification.userId())
+                .filter(User::isActive)
+                .map(UserDto::from)
+                .orElseThrow(AuthService::unauthenticated);
+    }
+
+    /**
+     * Checks the access token of a request that needs a logged-in user, from its signature and claims only.
+     *
+     * <p>Throws {@code BusinessException} 401 {@code TOKEN_EXPIRED} if the token is genuine but expired (the client
+     * should refresh), or 401 {@code UNAUTHENTICATED} if it is missing or invalid. The database is not read, so a token
+     * of a user disabled since it was issued stays valid until it expires.
+     *
+     * @param accessToken value of the {@code access_token} cookie, {@code null} if absent
+     * @return the verification, always {@code VALID}
+     */
+    public AccessTokenVerification authenticate(String accessToken) {
         AccessTokenVerification verification = tokenService.verifyAccessToken(accessToken);
         if (verification.status() == AccessTokenVerification.Status.EXPIRED) {
             throw new BusinessException(ApiStatus.UNAUTHORIZED, "TOKEN_EXPIRED", "Access token has expired");
@@ -148,10 +166,7 @@ public class AuthService {
         if (!verification.isValid()) {
             throw unauthenticated();
         }
-        return userRepository.findById(verification.userId())
-                .filter(User::isActive)
-                .map(UserDto::from)
-                .orElseThrow(AuthService::unauthenticated);
+        return verification;
     }
 
     // Account matching what the user typed: an email if it contains "@"; a phone number if it normalizes to one,

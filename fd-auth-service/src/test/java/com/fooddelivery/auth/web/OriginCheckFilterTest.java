@@ -1,7 +1,7 @@
 package com.fooddelivery.auth.web;
 
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fooddelivery.apiflow.web.response.ApiResponseWriter;
+import com.fooddelivery.web.handler.ApiResponseWriter;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;

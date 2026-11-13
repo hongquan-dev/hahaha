@@ -15,6 +15,25 @@ Mọi API của service đi qua luồng của `common-api-flow-lib`, mỗi lớp
 4. **Controller**: lấy dữ liệu từ `ApiRequest`, gọi service, trả `ResponseHandler.generateResponse(...)`.
 5. **Service**: logic nghiệp vụ và mọi kiểm tra cần DB (trùng, tồn tại, trạng thái), ném `BusinessException` khi vi phạm.
 
+## Thay đổi database: luôn qua migration
+
+Dự án nhiều người cùng làm, nên database của mọi người phải giống nhau chỉ nhờ chạy code mới nhất. Flyway tự áp dụng
+các migration còn thiếu khi service khởi động; Hibernate chỉ kiểm tra (`ddl-auto=validate`), không bao giờ tự sửa bảng.
+
+- **Mọi thay đổi cấu trúc** (tạo/xoá/đổi tên bảng, cột, kiểu dữ liệu, index, constraint, khoá ngoại) **và dữ liệu bắt
+  buộc để app chạy** (vd. danh mục cố định, tài khoản admin mặc định) đều viết thành migration SQL trong
+  `src/main/resources/db/migration` của service sở hữu database đó. Không sửa tay bằng psql/pgAdmin, không đổi
+  `ddl-auto` sang `update`/`create`.
+- Tên file `V<số>__<mô_tả_tiếng_anh>.sql`, số tăng dần liên tục trong từng service, vd. `V2__add_avatar_to_users.sql`.
+  Trước khi đặt số, xem số lớn nhất đang có trong thư mục và trên nhánh `main` để không trùng với người khác.
+- **Không sửa, không xoá, không đổi tên migration đã commit**: Flyway so checksum, nên máy đã chạy bản cũ sẽ không
+  khởi động được. Cần sửa thì viết migration mới.
+- Migration phải chạy được trên database đã có dữ liệu: thêm cột `NOT NULL` thì kèm `DEFAULT` hoặc cập nhật dữ liệu cũ
+  trước, đổi tên cột thì dùng `ALTER ... RENAME` thay vì xoá rồi tạo lại.
+- Migration và entity JPA sửa trong **cùng một commit**; khởi động thử service để `validate` xác nhận hai bên khớp.
+- Dữ liệu thử nghiệm của riêng mình (tài khoản test, đơn hàng mẫu) **không** viết thành migration. Khi tạo hay xoá dữ
+  liệu như vậy trên database dùng chung, báo lại cho người dùng.
+
 ## Quy ước comment trong source code
 
 Chuẩn tham chiếu là `common-api-flow-lib` (vd. `ApiRegistry`, `ApiFlowInterceptor`, `ApiRequest`); trong dự án này xem

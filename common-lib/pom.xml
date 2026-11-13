@@ -60,14 +60,14 @@
             <version>${food-delivery-libs.version}</version>
         </dependency>
 
-        <!-- Shared DTOs -->
+        <!-- Plain models: ApiResponse, ApiStatus, FieldErrorDetail, PageMeta, shared enums and DTOs -->
         <dependency>
             <groupId>com.fooddelivery</groupId>
             <artifactId>common-dto-lib</artifactId>
             <version>${food-delivery-libs.version}</version>
         </dependency>
 
-        <!-- Web: ApiResponse, ResponseHandler, BusinessException, GlobalExceptionHandler -->
+        <!-- Web: ResponseHandler, ApiResponseWriter, BusinessException, GlobalExceptionHandler -->
         <dependency>
             <groupId>com.fooddelivery</groupId>
             <artifactId>common-web-lib</artifactId>

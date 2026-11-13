@@ -9,7 +9,7 @@ import com.fooddelivery.auth.service.session.SessionService;
 import com.fooddelivery.auth.service.token.AccessTokenVerification;
 import com.fooddelivery.auth.service.token.TokenService;
 import com.fooddelivery.web.exception.BusinessException;
-import com.fooddelivery.web.status.ApiStatus;
+import com.fooddelivery.dto.response.ApiStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -131,7 +131,8 @@ class AuthServiceLoginTest {
     void currentUserMapsTokenOutcomes() {
         when(tokenService.verifyAccessToken("expired")).thenReturn(AccessTokenVerification.expired());
         when(tokenService.verifyAccessToken("bad")).thenReturn(AccessTokenVerification.invalid());
-        when(tokenService.verifyAccessToken("ok")).thenReturn(AccessTokenVerification.valid(user.getId(), "CUSTOMER"));
+        when(tokenService.verifyAccessToken("ok")).thenReturn(AccessTokenVerification.valid(user.getId(), "CUSTOMER",
+                Instant.parse("2026-11-06T08:00:00Z"), Instant.parse("2026-11-06T08:15:00Z")));
         when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
 
         assertError(() -> authService.currentUser("expired"), ApiStatus.UNAUTHORIZED, "TOKEN_EXPIRED");

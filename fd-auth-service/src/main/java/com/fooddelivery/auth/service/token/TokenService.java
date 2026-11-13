@@ -164,7 +164,9 @@ public class TokenService {
         }
 
         Object role = claims.getClaim(ROLE_CLAIM);
-        return AccessTokenVerification.valid(userId, role instanceof String text ? text : null);
+        Date issueTime = claims.getIssueTime();
+        return AccessTokenVerification.valid(userId, role instanceof String text ? text : null,
+                issueTime == null ? null : issueTime.toInstant(), expiration.toInstant());
     }
 
     /**
