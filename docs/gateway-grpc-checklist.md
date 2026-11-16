@@ -152,14 +152,27 @@ Kết quả tôi đã chạy (gateway ở 18080 vì 8080 đang bị `dms-api` ch
 
 ## P2. Auth: công bố public key (JWKS)
 
-- [ ] `GET /auth/.well-known/jwks.json` trả `{"keys":[...]}` chỉ gồm **public key** (`RSAKey.toPublicJWK()`), có
+- [x] `GET /auth/.well-known/jwks.json` trả `{"keys":[...]}` chỉ gồm **public key** (`RSAKey.toPublicJWK()`), có
       `kid`, `alg=RS256`, `use=sig`. Path này đã nằm trong `api-flow.exclude-paths`
-- [ ] Header `Cache-Control: public, max-age=300`
-- [ ] Unit test: JWKS không chứa các thành phần của private key (`d`, `p`, `q`, `dp`, `dq`, `qi`)
+      (`JwksController`; body là JWK Set chuẩn, không bọc `ApiResponse`, vì thư viện JWT đọc đúng định dạng này;
+      `Content-Type: application/jwk-set+json` theo RFC 7517)
+- [x] Header `Cache-Control: public, max-age=300` (Spring ghi thành `max-age=300, public`)
+- [x] Unit test (`JwksControllerTest`, 3 test): JWKS không chứa các thành phần của private key (`d`, `p`, `q`, `dp`,
+      `dq`, `qi`); header; token ký bằng private key kiểm tra được bằng key đọc lại từ JWKS
+- [x] README của auth (danh sách API, mục 4.1, cấu trúc source, bảng unit test) và Postman (request
+      "Auth - JWKS" có test script)
 
 **Kiểm tra:**
 - `curl http://localhost:8080/auth/.well-known/jwks.json` → 200, đúng `kid` = `auth.jwt.key-id`, không có field `d`
 - Dán JWKS và một access token vào jwt.io → chữ ký hợp lệ
+
+Kết quả tôi đã chạy (gateway ở 18080):
+- Unit test auth: 54/54 pass (51 cũ + 3 mới)
+- Qua gateway: 200, `Content-Type: application/jwk-set+json`, `Cache-Control: max-age=300, public`; key có `kty`,
+  `e`, `use=sig`, `kid=fd-auth-dev-1` (trùng `auth.jwt.key-id`), `alg=RS256`, `n`; không có tham số private.
+  `POST` vào cùng path → 405
+- Thay jwt.io bằng một đoạn Python tự kiểm RS256 (không dùng chung thư viện với auth): access token thật lấy từ
+  login → chữ ký **hợp lệ** với key trong JWKS; cùng token đó sửa `role` thành `ADMIN` → **không hợp lệ**
 - [ ] Đạt:
 
 **Trao đổi:** JWKS là gì, vì sao công bố public key là an toàn, `kid` giúp đổi khoá mà không làm hỏng token cũ ra sao.

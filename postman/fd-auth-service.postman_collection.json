@@ -293,6 +293,45 @@
         },
         "description": "Không có body. Thu hồi phiên của cookie refresh_token và xoá 2 cookie (Max-Age=0). Luôn 200, kể cả khi không có cookie. Gọi 'Auth - Me' sau đó -> 401 UNAUTHENTICATED."
       }
+    },
+    {
+      "name": "Auth - JWKS (public key)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 + application/jwk-set+json', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/jwk-set+json');",
+              "});",
+              "pm.test('Only the public key, with kid, use, alg', () => {",
+              "  const keys = pm.response.json().keys;",
+              "  pm.expect(keys).to.have.lengthOf(1);",
+              "  pm.expect(keys[0]).to.include({ kty: 'RSA', use: 'sig', alg: 'RS256' });",
+              "  pm.expect(keys[0]).to.have.all.keys('kty', 'kid', 'use', 'alg', 'n', 'e');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/auth/.well-known/jwks.json",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            ".well-known",
+            "jwks.json"
+          ]
+        },
+        "description": "200 + JWK Set chuẩn (không bọc ApiResponse): public key để gateway và các service khác tự kiểm tra access token. Không cần cookie. Chỉ có n, e, không bao giờ có d, p, q. kid trùng auth.jwt.key-id."
+      }
     }
   ]
 }

@@ -82,8 +82,9 @@ AUTH_JWT_ACCESSTTL=10s mvn spring-boot:run
 | `GET` | `/auth/me` | (không) | 200 + user | User của cookie `access_token` |
 | `POST` | `/auth/refresh` | (không) | 200 + 2 cookie mới | Làm mới phiên (rotation) |
 | `POST` | `/auth/logout` | (không) | 200 + xoá 2 cookie | Kết thúc phiên; luôn 200 |
+| `GET` | `/auth/.well-known/jwks.json` | (không) | 200 + JWK Set | Public key để kiểm tra access token (xem 4.1) |
 
-Mọi response đều theo định dạng chung `ApiResponse` của `common-web-lib`:
+Mọi response (trừ JWKS, xem 4.1) đều theo định dạng chung `ApiResponse` của `common-web-lib`:
 
 ```json
 {
@@ -189,9 +190,20 @@ Riêng `/auth/refresh` bắt lỗi 401 ngay trong controller để gắn thêm h
 **Vì sao RS256 (cặp khoá) chứ không HS256 (một secret):**
 
 - **Private key** chỉ auth-service giữ, dùng để **ký**: chỉ auth-service tạo được token.
-- **Public key** công khai, dùng để **kiểm tra chữ ký**. Sau này gateway và các service khác lấy public key qua JWKS
-  (`/auth/.well-known/jwks.json`, đã chừa sẵn trong `api-flow.exclude-paths`) để tự kiểm tra token mà không cần gọi
-  auth-service và không thể tự tạo token.
+- **Public key** công khai, dùng để **kiểm tra chữ ký**. Gateway và các service khác lấy public key qua JWKS
+  (`GET /auth/.well-known/jwks.json`) để tự kiểm tra token mà không cần gọi auth-service và không thể tự tạo token.
+
+**JWKS** (`JwksController`): trả đúng định dạng chuẩn JWK Set (RFC 7517), **không** bọc trong `ApiResponse`, vì thư
+viện JWT đọc đúng định dạng này. Path nằm trong `api-flow.exclude-paths` nên không có route trong `api-routes.xml`.
+
+```json
+{"keys":[{"kty":"RSA","kid":"fd-auth-dev-1","use":"sig","alg":"RS256","n":"zO98l3bu...","e":"AQAB"}]}
+```
+
+- Chỉ có tham số public (`n`, `e`), không bao giờ có tham số private (`d`, `p`, `q`, `dp`, `dq`, `qi`).
+- Bên kiểm tra chọn key có `kid` trùng với `kid` trong header của token.
+- `Content-Type: application/jwk-set+json`, `Cache-Control: max-age=300, public`: bên kiểm tra được cache 5 phút.
+  Khi xoay khoá, phải công bố khoá mới ít nhất 5 phút trước khi bắt đầu ký bằng nó.
 
 ### 4.2. Hai cookie
 
@@ -470,7 +482,10 @@ src/main/java/com/fooddelivery/auth/
 │   ├── security/JwtKeyConfig     parse cặp khoá RSA thành bean RSAKey (nimbus)
 │   ├── security/PasswordConfig   BCryptPasswordEncoder
 │   └── web/WebFilterConfig       đăng ký OriginCheckFilter (order HIGHEST_PRECEDENCE + 5)
-├── controller/AuthController     5 API; gắn/xoá cookie
+├── controller/
+│   ├── AuthController            5 API; gắn/xoá cookie
+│   ├── JwksController            GET /auth/.well-known/jwks.json (public key, ngoài API flow)
+│   └── TestController            GET /auth/test/ping
 ├── dto/                          RegisterRequest, LoginRequest (body), UserDto (response)
 ├── repository/                   UserRepository, RefreshTokenRepository (findByTokenHashForUpdate, revokeFamily)
 ├── service/
@@ -532,7 +547,7 @@ Frontend mẫu (React + TS + Vite): `Food Delivery/hehehe`. Các điểm bắt b
 
 ## 12. Kiểm thử
 
-### Unit test: 51 test, `mvn test -pl fd-auth-service`
+### Unit test: 54 test, `mvn test -pl fd-auth-service`
 
 | Test | Số test | Nội dung chính |
 |---|---:|---|
@@ -542,6 +557,7 @@ Frontend mẫu (React + TS + Vite): `Food Delivery/hehehe`. Các điểm bắt b
 | `AuthCookiesTest` | 7 | Đủ thuộc tính cookie; `Max-Age` theo mốc sớm hơn; bản xoá cùng tên và `Path`; tắt `Secure` |
 | `OriginCheckFilterTest` | 7 | GET; không có `Origin`; `Origin` hợp lệ, viết hoa; POST/PUT/PATCH/DELETE từ origin lạ; khác port; `Origin: null` |
 | `IdentifierNormalizerTest` | 3 | Các dạng SĐT; đầu số hợp lệ; `null` |
+| `JwksControllerTest` | 3 | Header `Content-Type`, `Cache-Control`; chỉ có tham số public kèm `kid`, `use`, `alg`; token ký bằng private key kiểm tra được bằng key đọc lại từ JWKS |
 
 ### Kiểm thử thủ công đã chạy (curl + PostgreSQL)
 
@@ -597,7 +613,8 @@ dùng lại refresh token cũ → thông báo "lý do bảo mật"; mất cookie
 - [ ] Giới hạn đăng nhập sai / khoá tạm
 - [ ] `POST /auth/logout-all` và danh sách thiết bị đang đăng nhập (đã có index `user_id`, `user_agent`, `ip`)
 - [ ] Job dọn `refresh_tokens` hết hạn
-- [ ] Endpoint JWKS `/auth/.well-known/jwks.json` + kiểm tra JWT ở gateway
+- [x] Endpoint JWKS `/auth/.well-known/jwks.json`
+- [ ] Kiểm tra JWT ở gateway
 - [x] Xử lý `X-Forwarded-For` khi có gateway
 - [ ] CORS ở gateway (chỉ cần khi frontend không đi qua proxy cùng origin)
 - [ ] Đọc khoá RSA từ secret, quy trình xoay khoá (`kid` mới, JWKS công bố cả khoá cũ và mới)
