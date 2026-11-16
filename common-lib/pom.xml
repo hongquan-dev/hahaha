@@ -21,7 +21,7 @@
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
             <exclusions>
                 <exclusion>
                     <groupId>org.springframework.boot</groupId>
@@ -48,8 +48,9 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Jackson 3, the default of Spring Boot 4 -->
         <dependency>
-            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <groupId>tools.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-xml</artifactId>
         </dependency>
 
@@ -97,11 +98,12 @@
 
         <!-- Database migrations: runs the SQL files in src/main/resources/db/migration of each service at startup,
              before Hibernate. Only active in a service with a DataSource; a service without that folder only gets a
-             warning. Flyway 10 moved PostgreSQL support out of flyway-core, so both are needed. Versions come from
-             the Spring Boot BOM -->
+             warning. Since Spring Boot 4 the auto-configuration is in its own starter: flyway-core alone would never
+             run the migrations. PostgreSQL support is a separate Flyway module. Versions come from the Spring Boot
+             BOM -->
         <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
