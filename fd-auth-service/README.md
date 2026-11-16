@@ -516,8 +516,9 @@ Frontend mẫu (React + TS + Vite): `Food Delivery/hehehe`. Các điểm bắt b
 
 1. **Gửi kèm cookie:** axios `withCredentials: true` (fetch: `credentials: 'include'`).
 2. **Không lưu token** ở đâu cả; trạng thái đăng nhập lấy từ `GET /auth/me` khi mở app, và từ body của login.
-3. **Dev dùng Vite proxy** `/auth` → `http://localhost:8081`: cùng origin nên không cần CORS, và `Origin` là
-   `http://localhost:5173` (đã nằm trong `auth.allowed-origins`).
+3. **Dev dùng Vite proxy** `/api/**` → gateway `http://localhost:8080` (bỏ tiền tố `/api`) → auth-service: cùng
+   origin nên không cần CORS, và `Origin` là `http://localhost:5173` (đã nằm trong `auth.allowed-origins`; gateway
+   chuyển nguyên header này).
 4. **Interceptor refresh:** mọi 401 (trừ `/auth/login`, `/auth/refresh`, `/auth/logout`) thì refresh **một lần** rồi
    gửi lại request.
    - Mỗi tab chỉ có một lần refresh tại một thời điểm; các request 401 cùng lúc chờ chung.
@@ -586,7 +587,8 @@ dùng lại refresh token cũ → thông báo "lý do bảo mật"; mất cookie
 
 - Khoá RSA nằm trong `application.properties` (chỉ chấp nhận cho dev).
 - Access token không thu hồi được trước hạn (tối đa 15 phút sau logout, nếu ai đó đã chép được token).
-- IP lưu là IP kết nối trực tiếp; khi có gateway đứng trước sẽ là IP của gateway.
+- IP lưu là IP client do gateway ghi vào `X-Forwarded-For` (`server.forward-headers-strategy=native`). Header này
+  chỉ được tin khi request đến từ địa chỉ nội bộ, nên ai gọi thẳng vào port 8081 từ mạng nội bộ vẫn giả được IP.
 - Bảng `refresh_tokens` tăng thêm khoảng 1 dòng mỗi lần refresh, chưa có job dọn.
 - Chưa có giới hạn số lần đăng nhập sai.
 
@@ -596,7 +598,8 @@ dùng lại refresh token cũ → thông báo "lý do bảo mật"; mất cookie
 - [ ] `POST /auth/logout-all` và danh sách thiết bị đang đăng nhập (đã có index `user_id`, `user_agent`, `ip`)
 - [ ] Job dọn `refresh_tokens` hết hạn
 - [ ] Endpoint JWKS `/auth/.well-known/jwks.json` + kiểm tra JWT ở gateway
-- [ ] CORS ở gateway; xử lý `X-Forwarded-For` khi có gateway
+- [x] Xử lý `X-Forwarded-For` khi có gateway
+- [ ] CORS ở gateway (chỉ cần khi frontend không đi qua proxy cùng origin)
 - [ ] Đọc khoá RSA từ secret, quy trình xoay khoá (`kid` mới, JWKS công bố cả khoá cũ và mới)
 
 Checklist chi tiết từng bước đã làm: [`docs/auth-login-checklist.md`](../docs/auth-login-checklist.md).

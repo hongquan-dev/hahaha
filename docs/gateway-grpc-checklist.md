@@ -109,19 +109,41 @@ Kết quả tôi đã chạy:
 
 ## P1. Gateway: điều hướng các API auth
 
-- [ ] Route `/auth/**` → `http://localhost:8081`. Đã có, chỉ cần chuyển sang prefix property mới ở P0
-- [ ] Gateway trả nguyên `Set-Cookie`, `Origin`, status và body. Kiểm tra cookie `access_token` (`Path=/`) và
+- [x] Route `/auth/**` → auth-service, dùng prefix property mới từ P0
+- [x] Gateway trả nguyên `Set-Cookie`, `Origin`, status và body. Kiểm tra cookie `access_token` (`Path=/`) và
       `refresh_token` (`Path=/auth`) vẫn đúng khi đi qua 8080
-- [ ] Không route `/internal/**`, gọi vào 8080 thì nhận 404
-- [ ] Địa chỉ service đặt trong property (vd. `services.auth.http-url=http://localhost:8081`), không hardcode trong route
-- [ ] Comment cho `application.properties` của gateway theo `CLAUDE.md`
-- [ ] FE (`Food Delivery/hehehe`): đổi proxy của Vite từ `8081` sang `8080`
+- [x] Không route `/internal/**`, gọi vào 8080 thì nhận 404
+- [x] Địa chỉ service đặt trong property `services.auth.http-url=http://localhost:8081`, route dùng
+      `${services.auth.http-url}`
+- [x] Comment cho `application.properties` của gateway theo `CLAUDE.md`
+- [x] FE (`Food Delivery/hehehe`): `VITE_PROXY_TARGET` (`.env.development`, `.env.example`) và giá trị mặc định trong
+      `vite.config.ts` đổi sang `8080`; cập nhật `README.md`, `CLAUDE.md`, `docs/handoff/fe-scaffold.md`
+- [x] Phát sinh thêm: **IP client**. Gateway mới mặc định không gửi `X-Forwarded-For`, nên auth sẽ lưu IP của gateway
+      cho mọi phiên. Đã xử lý:
+  - Gateway: `trusted-proxies=(?!)`: bỏ mọi header `X-Forwarded-*` client tự gửi, tự ghi `X-Forwarded-For` bằng IP
+    nó thấy
+  - Auth: `server.forward-headers-strategy=native`: Tomcat lấy IP từ `X-Forwarded-For`, chỉ khi request đến từ địa
+    chỉ nội bộ
+  - Cập nhật comment `ApiRequest.getRemoteAddr()` (libs, chưa commit) và README của auth
 
 **Kiểm tra** (tất cả gọi vào **8080**):
 - `POST /auth/register` → 201; `POST /auth/login` → 200 kèm 2 cookie
 - `GET /auth/me` với cookie → 200; `POST /auth/refresh` → 200 kèm cookie mới; `POST /auth/logout` → 200
 - `POST /auth/login` với `Origin: http://evil.com` → 403 `ORIGIN_NOT_ALLOWED` (chứng minh header đi qua gateway)
 - `GET http://localhost:8080/internal/users/1` → 404
+
+Kết quả tôi đã chạy (gateway ở 18080 vì 8080 đang bị `dms-api` chiếm):
+- Qua gateway: login 200 kèm 2 cookie đúng thuộc tính, me 200, refresh 200, logout 200; `Origin` lạ 403
+  `ORIGIN_NOT_ALLOWED`, `Origin: http://localhost:5173` 200
+- `/internal/users/1` → 404. Body là format mặc định của gateway (`timestamp`, `path`, `status`, `error`), chưa
+  phải `ApiResponse`; sẽ thống nhất ở P3 (D4)
+- IP lưu trong `refresh_tokens`: gọi gateway qua IP LAN → `10.2.22.53` (đúng IP client); qua gateway kèm
+  `X-Forwarded-For: 6.6.6.6` giả → `127.0.0.1` (header giả bị bỏ); gọi **thẳng** 8081 từ LAN kèm header giả →
+  `6.6.6.6` (giả được vì 10.x là địa chỉ nội bộ, đúng giới hạn đã ghi: không được mở port 8081 ra ngoài)
+- Qua Vite (`/api/**` → gateway → auth): login 200, cookie `refresh_token` được đổi sang `Path=/api/auth`, me 200,
+  ping 200, refresh 200, logout 200. Tắt riêng gateway thì `/api/auth/me` qua Vite lỗi 500 trong khi auth vẫn chạy,
+  chứng tỏ FE thật sự đi qua gateway
+- FE: typecheck, lint, prettier, build đều sạch; backend 51/51 test pass
 - [ ] Đạt:
 
 **Trao đổi:** gateway làm gì với request/response (predicate, filter, proxy), vì sao cookie vẫn chạy khi đi qua gateway.

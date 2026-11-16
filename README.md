@@ -2,6 +2,9 @@
 
 ## Service Ports
 
+Client (frontend, Postman) chỉ gọi qua API Gateway `8080`; gateway chuyển `/auth/**` sang auth-service. Các port
+còn lại là nội bộ, chỉ gọi thẳng khi debug.
+
 | Service | Port | Health check |
 |---|---:|---|
 | API Gateway | `8080` | `GET http://localhost:8080/gateway/health` |
