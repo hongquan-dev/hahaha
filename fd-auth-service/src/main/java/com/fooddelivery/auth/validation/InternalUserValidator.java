@@ -38,10 +38,31 @@ public class InternalUserValidator {
         String userId = request.getPathVariable("userId").asString();
         log.info("[VALIDATE] [{}] {} | userId={}", request.getMethod(), request.getPath(), userId);
 
-        if (userId == null || !ID.matcher(userId).matches() || !isUserId(Long.parseLong(userId))) {
-            throw BusinessException.ofField(ApiStatus.BAD_REQUEST, "INVALID_USER_ID", "userId",
-                    "userId must be the 14-digit ID of a user");
+        if (userId == null || !ID.matcher(userId).matches()) {
+            throw invalidUserId();
         }
+        checkUserId(Long.parseLong(userId));
+    }
+
+    /**
+     * Same rule for a user ID that is already a number, e.g. the {@code user_id} of the gRPC {@code GetUserRequest},
+     * so both transports reject the same IDs with the same error.
+     *
+     * <p>Throws {@code BusinessException} 400 {@code INVALID_USER_ID}, with a field error on {@code userId}, if the ID
+     * is not 14 digits or its 11th digit is not the code of {@code EntityType.USER}, e.g. {@code 0} or the ID of an
+     * order.
+     *
+     * @param userId the ID to check
+     */
+    public static void checkUserId(long userId) {
+        if (!isUserId(userId)) {
+            throw invalidUserId();
+        }
+    }
+
+    private static BusinessException invalidUserId() {
+        return BusinessException.ofField(ApiStatus.BAD_REQUEST, "INVALID_USER_ID", "userId",
+                "userId must be the 14-digit ID of a user");
     }
 
     // True if the 11th digit is the code of EntityType.USER; any other digit, known or not, is another kind of ID

@@ -29,6 +29,7 @@ Mục lục:
 12. [Kiểm thử](#12-kiểm-thử)
 13. [Bảng mã lỗi](#13-bảng-mã-lỗi)
 14. [Giới hạn hiện tại và việc tiếp theo](#14-giới-hạn-hiện-tại-và-việc-tiếp-theo)
+15. [gRPC `UserService`](#15-grpc-userservice)
 
 ---
 
@@ -45,27 +46,28 @@ Mục lục:
 # Repo riêng chứa thư viện dùng chung (common-api-flow-lib, common-id-lib, common-web-lib, ...)
 cd <đường-dẫn>/food-delivery-libs && mvn install
 
-# Từ thư mục gốc của repo này (food-delivery-backend)
-mvn install -pl common-lib,fd-auth-service -am -DskipTests
+# Từ thư mục gốc của repo này (food-delivery-backend), bằng Maven Wrapper (Maven 3.9.16)
+./mvnw install -pl common-lib,fd-grpc-api,fd-auth-service -am -DskipTests
 ```
 
 **Chạy:**
 
 ```bash
-cd fd-auth-service
-mvn spring-boot:run
+./mvnw spring-boot:run -pl fd-auth-service
 ```
+
+Service mở hai cổng: HTTP `8081` (Tomcat) và gRPC `9081` (Netty, xem [mục 15](#15-grpc-userservice)).
 
 **Chạy test** (không cần DB, không khởi động Spring):
 
 ```bash
-mvn test -pl fd-auth-service
+./mvnw test -pl fd-auth-service
 ```
 
 **Đổi cấu hình khi chạy** mà không sửa file, ví dụ đặt access token sống 10 giây để test hết hạn:
 
 ```bash
-AUTH_JWT_ACCESSTTL=10s mvn spring-boot:run
+AUTH_JWT_ACCESSTTL=10s ./mvnw spring-boot:run -pl fd-auth-service
 ```
 
 > Cấu hình sai (thiếu khoá, khoá hỏng, TTL không hợp lệ, origin sai định dạng...) thì service **từ chối khởi động** và
@@ -453,6 +455,8 @@ Mọi property `auth.*` được bind vào `config/properties/AuthProperties` l�
 | `auth.refresh.absolute-ttl` | `30d` | Hạn tối đa của một phiên; phải ≥ `idle-ttl` |
 | `auth.refresh.reuse-grace` | `10s` | Grace window cho 2 tab refresh cùng lúc (409) |
 | `auth.cookie.secure` | `true` | Thuộc tính `Secure` của cookie |
+| `spring.grpc.server.port` | `9090` (đặt `9081`) | Port của gRPC server, chạy riêng cạnh Tomcat |
+| `spring.grpc.server.reflection.enabled` | `true` | Cho grpcurl/Postman tự đọc danh sách service; production nên tắt |
 | `auth.allowed-origins` | (bắt buộc) | Whitelist `Origin`, cách nhau dấu phẩy, dạng `scheme://host[:port]`, ví dụ `http://localhost:5173` |
 
 **Kiểm tra lúc khởi động** (sai thì không khởi động, thông báo nêu đúng tên property):
@@ -484,6 +488,10 @@ src/main/java/com/fooddelivery/auth/
 │   ├── security/JwtKeyConfig     parse cặp khoá RSA thành bean RSAKey (nimbus)
 │   ├── security/PasswordConfig   BCryptPasswordEncoder
 │   └── web/WebFilterConfig       đăng ký OriginCheckFilter (order HIGHEST_PRECEDENCE + 5)
+├── grpc/
+│   ├── UserGrpcService           gRPC UserService/GetUser (vai trò như controller)
+│   ├── BusinessExceptionGrpcHandler  BusinessException → gRPC status + trailer error-code
+│   └── GrpcLoggingInterceptor    log mỗi lời gọi gRPC: method, status, thời gian
 ├── controller/
 │   ├── AuthController            5 API; gắn/xoá cookie
 │   ├── JwksController            GET /auth/.well-known/jwks.json (public key, ngoài API flow)
@@ -554,7 +562,7 @@ Frontend mẫu (React + TS + Vite): `Food Delivery/hehehe`. Các điểm bắt b
 
 ## 12. Kiểm thử
 
-### Unit test: 60 test, `mvn test -pl fd-auth-service`
+### Unit test: 65 test, `./mvnw test -pl fd-auth-service`
 
 | Test | Số test | Nội dung chính |
 |---|---:|---|
@@ -565,6 +573,7 @@ Frontend mẫu (React + TS + Vite): `Food Delivery/hehehe`. Các điểm bắt b
 | `OriginCheckFilterTest` | 7 | GET; không có `Origin`; `Origin` hợp lệ, viết hoa; POST/PUT/PATCH/DELETE từ origin lạ; khác port; `Origin: null` |
 | `IdentifierNormalizerTest` | 3 | Các dạng SĐT; đầu số hợp lệ; `null` |
 | `InternalUserValidatorTest` | 3 | ID user hợp lệ; `abc`, quá ngắn/dài, số âm, rỗng; ID của order; chữ số loại không tồn tại |
+| `UserGrpcServiceTest` | 5 | Qua stub thật trên gRPC server in-process: đủ field như HTTP; không có SĐT thì field không được đặt; không có user → `NOT_FOUND` + `USER_NOT_FOUND`; ID sai → `INVALID_ARGUMENT` mà không truy vấn DB; lỗi lạ → `INTERNAL` không lộ chi tiết |
 | `UserQueryServiceTest` | 3 | Trả user không kèm hash/email; user bị khoá trả `active=false`; không có → 404 `USER_NOT_FOUND` |
 | `JwksControllerTest` | 3 | Header `Content-Type`, `Cache-Control`; chỉ có tham số public kèm `kid`, `use`, `alg`; token ký bằng private key kiểm tra được bằng key đọc lại từ JWKS |
 
@@ -631,3 +640,39 @@ dùng lại refresh token cũ → thông báo "lý do bảo mật"; mất cookie
 - [ ] Đọc khoá RSA từ secret, quy trình xoay khoá (`kid` mới, JWKS công bố cả khoá cũ và mới)
 
 Checklist chi tiết từng bước đã làm: [`docs/auth-login-checklist.md`](../docs/auth-login-checklist.md).
+
+---
+
+## 15. gRPC `UserService`
+
+Cùng nghiệp vụ với `GET /internal/users/{userId}` nhưng qua gRPC, cho service khác trong mạng nội bộ (vd. order).
+Hợp đồng: [`fd-grpc-api/src/main/proto/auth/v1/user_service.proto`](../fd-grpc-api/src/main/proto/auth/v1/user_service.proto).
+
+```
+Client (stub sinh từ .proto) ──HTTP/2, protobuf──> Netty :9081
+  ├─ GrpcLoggingInterceptor          log method, status, thời gian khi lời gọi kết thúc
+  ├─ GrpcExceptionHandlerInterceptor (Spring gRPC) bắt exception → BusinessExceptionGrpcHandler
+  └─ UserGrpcService.getUser         InternalUserValidator.checkUserId → UserQueryService.getById → UserResponse
+```
+
+- Không có API flow (`api-routes.xml`, JSON Schema) cho gRPC: cấu trúc message do protobuf đảm bảo, giá trị do
+  `UserGrpcService` tự kiểm tra bằng **cùng** hàm `InternalUserValidator.checkUserId` với HTTP.
+- Lỗi: `BusinessException` → mã gRPC tương ứng + mã lỗi nghiệp vụ trong trailer `error-code`:
+
+| HTTP | gRPC | `error-code` | Khi nào |
+|---:|---|---|---|
+| 400 | `INVALID_ARGUMENT` | `INVALID_USER_ID` | `user_id` không phải ID 14 số của user |
+| 404 | `NOT_FOUND` | `USER_NOT_FOUND` | Không có user |
+| (lỗi lạ) | `INTERNAL` | (không có) | Mô tả chung "Internal error", chi tiết chỉ ghi log |
+
+**Thử bằng [grpcurl](https://github.com/fullstorydev/grpcurl)** (server reflection đang bật nên không cần file `.proto`):
+
+```bash
+grpcurl -plaintext localhost:9081 list
+grpcurl -plaintext -d '{"user_id": 17947973411001}' localhost:9081 fooddelivery.auth.v1.UserService/GetUser
+grpcurl -plaintext -v -d '{"user_id": 17000000001000}' localhost:9081 fooddelivery.auth.v1.UserService/GetUser
+```
+
+`int64` hiện thành chuỗi trong JSON của grpcurl (`"id": "17947973411001"`), theo chuẩn JSON của protobuf; trong Java
+vẫn là `long`.
+

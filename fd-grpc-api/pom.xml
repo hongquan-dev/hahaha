@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.fooddelivery</groupId>
+        <artifactId>food-delivery-backend</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>fd-grpc-api</artifactId>
+    <name>food-delivery-grpc-api</name>
+    <description>gRPC contracts (.proto) shared by the services, with the generated Java code</description>
+
+    <dependencies>
+        <!-- Runtime of the generated code: messages (protobuf-java, through grpc-protobuf) and stubs (grpc-stub).
+             Versions come from the Spring Boot BOM, the same as the gRPC starters of the services -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-stub</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Generates Java classes from src/main/proto at each build: messages and, through protoc-gen-grpc-java,
+                 the service base class (server) and stubs (client). protoc and plugin versions and the generate goal
+                 are configured by spring-boot-starter-parent -->
+            <plugin>
+                <groupId>io.github.ascopes</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

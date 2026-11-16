@@ -21,6 +21,7 @@
 
     <modules>
         <module>common-lib</module>
+        <module>fd-grpc-api</module>
         <module>fd-gateway-service</module>
         <module>fd-auth-service</module>
         <module>fd-restaurant-service</module>

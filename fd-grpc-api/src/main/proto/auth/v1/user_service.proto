@@ -1,0 +1,37 @@
+// Users of auth-service, for other services inside the network (e.g. order-service). The gRPC counterpart of
+// GET /internal/users/{userId}: same rules (UserQueryService) and same fields (InternalUserDto).
+//
+// Served by auth-service on port 9081 (spring.grpc.server.port). Field numbers are the wire format: never change or
+// reuse one; add new fields with new numbers instead.
+syntax = "proto3";
+
+package fooddelivery.auth.v1;
+
+option java_package = "com.fooddelivery.grpc.auth.v1";
+option java_multiple_files = true;
+option java_outer_classname = "UserServiceProto";
+
+service UserService {
+  // A user by ID, active or locked. Errors, with the error code of the HTTP API in the "error-code" metadata:
+  //   INVALID_ARGUMENT (INVALID_USER_ID): user_id is not the 14-digit ID of a user
+  //   NOT_FOUND (USER_NOT_FOUND): no user has this ID
+  rpc GetUser(GetUserRequest) returns (UserResponse);
+}
+
+message GetUserRequest {
+  // 14-digit ID from IdUtils, e.g. 17939313751001
+  int64 user_id = 1;
+}
+
+message UserResponse {
+  // 14-digit ID, e.g. 17939313751001
+  int64 id = 1;
+  // Lowercase, e.g. "quan.nguyen"
+  string username = 2;
+  // As +84xxxxxxxxx; absent (has_phone_number() is false) if the account has none
+  optional string phone_number = 3;
+  // e.g. "CUSTOMER"
+  string role = 4;
+  // False if the account is locked
+  bool active = 5;
+}

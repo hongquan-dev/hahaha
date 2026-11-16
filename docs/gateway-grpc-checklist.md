@@ -272,16 +272,28 @@ Kết quả tôi đã chạy (gateway ở 18080):
 
 ## P5. Module proto và gRPC server ở auth
 
-- [ ] Module `fd-grpc-api` (khai báo trong parent pom): `protobuf-maven-plugin` sinh code Java khi build
-- [ ] `src/main/proto/auth/v1/user_service.proto`: `package fooddelivery.auth.v1`,
+- [x] Module `fd-grpc-api` (khai báo trong parent pom): `protobuf-maven-plugin` sinh code Java khi build. Cấu hình
+      protoc/grpc-java đã có sẵn trong `spring-boot-starter-parent`, module chỉ khai báo plugin
+- [x] **Phát sinh: Maven Wrapper.** Plugin này cần Maven ≥ 3.9.6, máy đang có 3.6.3. Đã thêm `mvnw`, `mvnw.cmd`,
+      `.mvn/wrapper/maven-wrapper.properties` (Maven 3.9.16): từ nay build bằng `./mvnw`, mọi người cùng một bản Maven
+- [x] `src/main/proto/auth/v1/user_service.proto`: `package fooddelivery.auth.v1`,
       `java_package = "com.fooddelivery.grpc.auth.v1"`, `service UserService { rpc GetUser(...) }`, message `GetUserRequest`
-      (`user_id`) và `UserResponse` (cùng các field với P4). Mỗi message/field có comment
-- [ ] Auth: thêm `spring-boot-starter-grpc-server` + `fd-grpc-api`, `spring.grpc.server.port=9081`
-- [ ] `UserGrpcService extends UserServiceGrpc.UserServiceImplBase` → `UserQueryService` → map sang proto
-- [ ] Server interceptor ánh xạ `BusinessException` → gRPC `Status`: 400 → `INVALID_ARGUMENT`, 404 → `NOT_FOUND`,
+      (`user_id`) và `UserResponse` (cùng các field với P4). Mỗi message/field có comment. `user_id`/`id` là `int64`
+      (ID là `long`); `phone_number` là `optional` để phân biệt "không có" với chuỗi rỗng
+- [x] Auth: thêm `spring-boot-starter-grpc-server` + `fd-grpc-api`, `spring.grpc.server.port=9081`. Phải loại
+      `spring-boot-starter-logging` khỏi starter gRPC (Logback đụng Log4j2, toàn bộ test lỗi khi khởi tạo logger)
+- [x] `UserGrpcService extends UserServiceGrpc.UserServiceImplBase` → `UserQueryService` → map sang proto. Kiểm tra
+      `user_id` bằng `InternalUserValidator.checkUserId`, cùng hàm với HTTP
+- [x] Ánh xạ `BusinessException` → gRPC `Status` bằng `BusinessExceptionGrpcHandler` (hook `GrpcExceptionHandler`
+      của Spring gRPC, không cần tự viết interceptor): 400 → `INVALID_ARGUMENT`, 404 → `NOT_FOUND`, ...,
       còn lại → `INTERNAL`. Mã lỗi (vd. `USER_NOT_FOUND`) đặt trong metadata `error-code`
-- [ ] Server interceptor log: method gRPC, status, thời gian xử lý
-- [ ] Bật gRPC server reflection (chỉ ở dev) để test bằng `grpcurl`/Postman
+- [x] Server interceptor log: method gRPC, status, thời gian xử lý (`GrpcLoggingInterceptor`, đặt **ngoài**
+      interceptor xử lý exception để thấy cả lời gọi lỗi)
+- [x] Bật gRPC server reflection (chỉ ở dev) để test bằng `grpcurl`/Postman (`grpc-services`,
+      `spring.grpc.server.reflection.enabled=true`, comment ghi tắt ở production). Kèm theo: health service chuẩn
+      `grpc.health.v1.Health`
+- [x] README gốc (build bằng `./mvnw`, port 9081), README auth (lệnh chạy, cấu hình, cấu trúc source, bảng test,
+      mục 15 gRPC kèm lệnh grpcurl)
 
 **Kiểm tra:**
 - Log auth khi khởi động có cả Tomcat 8081 lẫn gRPC 9081
@@ -289,6 +301,21 @@ Kết quả tôi đã chạy (gateway ở 18080):
 - `grpcurl -plaintext -d '{"user_id":"<id>"}' localhost:9081 fooddelivery.auth.v1.UserService/GetUser` → đúng dữ
   liệu, giống hệt kết quả của P4
 - Id không tồn tại → status `NOT_FOUND`, metadata `error-code: USER_NOT_FOUND`
+
+Kết quả tôi đã chạy (grpcurl 1.9.4 tải vào `/tmp`, không cài vào máy):
+- `./mvnw clean install`: mọi module BUILD SUCCESS; auth 65/65 (thêm `UserGrpcServiceTest` 5, chạy qua stub thật trên
+  gRPC server in-process), gateway 26/26
+- Log khởi động: "Tomcat started on port 8081", "Registered gRPC service: fooddelivery.auth.v1.UserService",
+  "gRPC Server started, listening on ... 9081"
+- `list` → `fooddelivery.auth.v1.UserService`, `grpc.health.v1.Health`, `grpc.reflection.v1.ServerReflection`
+- `GetUser 17947973411001` → `id`, `username`, `phone_number`, `role`, `active` trùng khớp với
+  `GET /internal/users/17947973411001` (grpcurl in `int64` thành chuỗi theo chuẩn JSON của protobuf)
+- `17000000001000` → `NotFound`, `error-code: USER_NOT_FOUND`; ID của order → `InvalidArgument`,
+  `error-code: INVALID_USER_ID`
+- `Health/Check` → `SERVING`
+- Log: mỗi lời gọi một dòng `[gRPC] ... | status=..., Nms`. Lần đầu lời gọi lỗi **không** được log vì interceptor
+  log nằm trong interceptor exception của Spring; đã sửa bằng `@Order(GrpcExceptionHandlerInterceptor.ORDER - 1)`,
+  chạy lại thì cả `NOT_FOUND`, `INVALID_ARGUMENT` đều có log
 - [ ] Đạt:
 
 **Trao đổi:** từ `.proto` sinh ra những class nào; vì sao số field (`= 1`, `= 2`) không bao giờ được đổi; một service
