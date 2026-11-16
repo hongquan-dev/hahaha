@@ -614,7 +614,7 @@ dùng lại refresh token cũ → thông báo "lý do bảo mật"; mất cookie
 - [ ] `POST /auth/logout-all` và danh sách thiết bị đang đăng nhập (đã có index `user_id`, `user_agent`, `ip`)
 - [ ] Job dọn `refresh_tokens` hết hạn
 - [x] Endpoint JWKS `/auth/.well-known/jwks.json`
-- [ ] Kiểm tra JWT ở gateway
+- [x] Kiểm tra JWT ở gateway (`JwtAuth` của fd-gateway-service, dùng JWKS)
 - [x] Xử lý `X-Forwarded-For` khi có gateway
 - [ ] CORS ở gateway (chỉ cần khi frontend không đi qua proxy cùng origin)
 - [ ] Đọc khoá RSA từ secret, quy trình xoay khoá (`kid` mới, JWKS công bố cả khoá cũ và mới)

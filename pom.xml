@@ -32,6 +32,12 @@
     <properties>
         <java.version>21</java.version>
         <spring-cloud.version>2025.1.4</spring-cloud.version>
+        <!-- Shared by every module that uses them, so auth (signs tokens) and the gateway (verifies them) never run
+             different versions. food-delivery-libs: 1.0.0-SNAPSHOT is the local build (mvn install), 1.0.0 the
+             release on JitPack -->
+<!--        <food-delivery-libs.version>1.0.0</food-delivery-libs.version>-->
+        <food-delivery-libs.version>1.0.0-SNAPSHOT</food-delivery-libs.version>
+        <nimbus-jose-jwt.version>10.10</nimbus-jose-jwt.version>
     </properties>
 
     <dependencies>

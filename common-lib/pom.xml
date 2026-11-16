@@ -13,11 +13,6 @@
     <name>common-lib</name>
     <description>Shared DTOs, Exceptions, and Utilities</description>
 
-    <properties>
-<!--        <food-delivery-libs.version>1.0.0</food-delivery-libs.version>-->
-        <food-delivery-libs.version>1.0.0-SNAPSHOT</food-delivery-libs.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -89,11 +84,11 @@
         </dependency>
 
         <!-- Signs and verifies the RS256 access tokens and builds the JWKS other services use to verify them.
-             Not managed by the Spring Boot BOM, hence the explicit version -->
+             Not managed by the Spring Boot BOM; the version is in the parent pom, shared with the gateway -->
         <dependency>
             <groupId>com.nimbusds</groupId>
             <artifactId>nimbus-jose-jwt</artifactId>
-            <version>10.10</version>
+            <version>${nimbus-jose-jwt.version}</version>
         </dependency>
 
         <!-- Database migrations: runs the SQL files in src/main/resources/db/migration of each service at startup,

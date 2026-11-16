@@ -26,5 +26,28 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-log4j2</artifactId>
         </dependency>
+
+        <!-- Verifies the RS256 access tokens with the public key published by auth-service (JWKS). Same library and
+             version as auth-service, which signs them -->
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>${nimbus-jose-jwt.version}</version>
+        </dependency>
+
+        <!-- ApiResponse and ApiStatus, so the gateway's 401/503 bodies look like the services' errors. Not common-lib:
+             it brings Spring MVC, and the gateway runs on WebFlux -->
+        <dependency>
+            <groupId>com.fooddelivery</groupId>
+            <artifactId>common-dto-lib</artifactId>
+            <version>${food-delivery-libs.version}</version>
+        </dependency>
     </dependencies>
+
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
 </project>

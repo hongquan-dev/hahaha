@@ -181,20 +181,26 @@ Kết quả tôi đã chạy (gateway ở 18080):
 
 ## P3. Gateway: kiểm tra token rồi mới cho vào order
 
-- [ ] Dependency: `nimbus-jose-jwt` để verify, `common-dto-lib` để dùng `ApiResponse`/`ApiStatus` (không dùng
-      `common-lib` vì gateway chạy WebFlux, không phải Servlet)
-- [ ] `JwksKeyProvider`: tải JWKS từ auth, cache; gặp `kid` lạ thì tải lại (tối đa 1 lần mỗi 30 giây).
-      Tải lazy ở request đầu tiên, nên gateway vẫn khởi động được khi auth chưa chạy
-- [ ] `JwtAuthFilter` (`GatewayFilter` gắn vào route `/order/**`):
-  - [ ] Lấy token theo D3
-  - [ ] Kiểm tra theo đúng thứ tự của `TokenService.verifyAccessToken`: định dạng → `alg` = RS256 → `kid` → chữ ký →
-        `iss` = `fd-auth-service` → `sub` → `exp` (lệch giờ cho phép 30 giây như auth)
-  - [ ] Sai → 401 theo D4. Không lấy được JWKS (auth chết) → 503 `AUTH_UNAVAILABLE`
-  - [ ] Đúng → xoá `X-User-Id`/`X-User-Role` client gửi lên, gắn giá trị từ claim `sub`/`role` (D5)
-  - [ ] Whitelist `GET /order/health` (D12)
-  - [ ] Log: method, path, userId, kết quả. **Không log token**
-- [ ] Route `/order/**` → `http://localhost:8083` kèm `JwtAuthFilter`
-- [ ] Unit test filter: token đúng, hết hạn, sai chữ ký, sai issuer, `alg=none`, không có token, client tự gửi `X-User-Id`
+- [x] Dependency: `nimbus-jose-jwt` để verify, `common-dto-lib` để dùng `ApiResponse`/`ApiStatus` (không dùng
+      `common-lib` vì gateway chạy WebFlux, không phải Servlet). Version của cả hai chuyển lên parent pom
+      (`nimbus-jose-jwt.version`, `food-delivery-libs.version`) để auth và gateway luôn dùng cùng bản
+- [x] `JwksKeyProvider`: tải JWKS từ auth bằng `WebClient` (không chặn thread), cache 5 phút; gặp `kid` lạ thì tải
+      lại (tối đa 1 lần mỗi 30 giây). Tải lazy ở request đầu tiên, nên gateway vẫn khởi động được khi auth chưa chạy.
+      Thêm: các request đồng thời dùng chung một lần tải; tải lỗi thì giữ key đã tải lần trước
+- [x] Filter `JwtAuth` (`JwtAuthGatewayFilterFactory`, gắn vào route `/order/**` bằng `filters[0]=JwtAuth`):
+  - [x] Lấy token theo D3 (cookie `access_token` trước, rồi `Authorization: Bearer`)
+  - [x] Kiểm tra theo đúng thứ tự của `TokenService.verifyAccessToken`: định dạng → `alg` = RS256 → `kid` → chữ ký →
+        `iss` = `fd-auth-service` → `sub` → `exp` (lệch giờ cho phép 30 giây như auth) (`AccessTokenVerifier`)
+  - [x] Sai → 401 theo D4. Không lấy được JWKS (auth chết) → 503 `AUTH_UNAVAILABLE`
+  - [x] Đúng → xoá `X-User-Id`/`X-User-Role` client gửi lên, gắn giá trị từ claim `sub`/`role` (D5). Header client
+        gửi lên bị xoá ở **mọi** request của route, kể cả đường dẫn public
+  - [x] Whitelist `GET /order/health` (D12), qua property `gateway.auth.public-paths`
+  - [x] Log: method, path, userId, kết quả. **Không log token**; lý do token sai chỉ ghi ở mức DEBUG, không trả cho
+        client
+- [x] Route `/order/**` → `${services.order.http-url}` (`http://localhost:8083`) kèm `JwtAuth`
+- [x] Unit test filter: token đúng, hết hạn, sai chữ ký, sai issuer, `alg=none`, không có token, client tự gửi `X-User-Id`
+      (gateway có 26 test: `AccessTokenVerifierTest` 12, `JwtAuthGatewayFilterFactoryTest` 8, `JwksKeyProviderTest` 6
+      chạy với một HTTP server thật thay cho auth)
 
 **Kiểm tra** (gọi `GET http://localhost:8080/order/test/auth-http`, hoặc một endpoint echo tạm của order nếu P5 chưa
 xong):
@@ -204,6 +210,26 @@ xong):
 - Gửi kèm `X-User-Id: 999` → order vẫn nhận id thật, không phải 999
 - Sửa 1 ký tự trong chữ ký của token → 401 `UNAUTHENTICATED`
 - Tắt auth, khởi động lại gateway, gọi với token hợp lệ → 503 `AUTH_UNAVAILABLE`
+
+Kết quả tôi đã chạy (gateway ở 18080; order chưa có `/order/test` nên đặt một echo server vào chỗ order, nó trả lại
+header nhận được và đếm số request, không thêm code tạm vào order):
+- Build toàn bộ: gateway 26/26, auth 54/54 test pass
+- Không token → 401 `UNAUTHENTICATED`, order nhận 0 request. Body theo format `ApiResponse`, có `path`
+- Cookie hợp lệ → order nhận `X-User-Id: 17947973411001`, `X-User-Role: CUSTOMER`; `Authorization: Bearer` cũng được
+- Gửi kèm `X-User-Id: 999`, `X-User-Role: ADMIN` giả → order vẫn nhận id và role thật
+- Sửa 1 ký tự ở giữa chữ ký, đổi `sub` sang user khác giữ nguyên chữ ký, token tự chế `alg=none` → cả ba 401
+  `UNAUTHENTICATED`, order không nhận request nào. (Sửa ký tự **cuối** của chữ ký thì vẫn qua: 342 ký tự Base64URL chứa
+  2052 bit nhưng chữ ký chỉ 2048 bit, 4 bit cuối là phần đệm bị bỏ khi giải mã, nên chữ ký giải ra y hệt. Không phải
+  lỗi)
+- `access-ttl=10s`: ngay sau login 200; sau 25s vẫn 200 (trong 30s lệch giờ); sau 42s gửi token cũ → 401
+  `TOKEN_EXPIRED`; refresh 200, gọi lại 200. Lưu ý: nếu dùng cookie thì sau 10s trình duyệt/curl tự xoá cookie
+  (`Max-Age` = thời hạn token) nên request không có token và nhận `UNAUTHENTICATED`; FE vẫn refresh vì nó refresh với
+  mọi 401
+- Tắt auth khi gateway đã có key → vẫn 200. Gateway khởi động lại khi auth vẫn tắt → 503 `AUTH_UNAVAILABLE`;
+  `/order/health` vẫn 200
+- `/order/health` không token → 200, header `X-User-Id: 999` giả bị xoá
+- Order thật (8083) qua gateway: `/order/health` 200
+- Log gateway không có dòng nào chứa token
 - [ ] Đạt:
 
 **Trao đổi:** vì sao gateway verify tại chỗ thay vì gọi auth; rủi ro của header `X-User-Id` và vì sao phải xoá header
