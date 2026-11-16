@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes>
+    <!-- Health check, plain text. Public at the gateway (gateway.auth.public-paths); no body, header or validator -->
+    <route>
+        <method>GET</method>
+        <path>/order/health</path>
+        <controller>com.fooddelivery.order.controller.OrderController</controller>
+    </route>
+
+    <!-- Test API: the caller fetched from auth-service over HTTP (GET /internal/users/{userId}). No body, so no schema;
+         the validator checks the X-User-Id header set by the gateway, AuthHttpClient maps the errors of auth-service -->
+    <route>
+        <method>GET</method>
+        <path>/order/test/auth-http</path>
+        <validator>com.fooddelivery.order.validation.AuthTestValidator.validateCaller</validator>
+        <controller>com.fooddelivery.order.controller.AuthTestController</controller>
+    </route>
+
+    <!-- Test API: the same over gRPC (UserService/GetUser). No body, so no schema; the validator checks the X-User-Id
+         header set by the gateway, AuthGrpcClient maps the gRPC statuses -->
+    <route>
+        <method>GET</method>
+        <path>/order/test/auth-grpc</path>
+        <validator>com.fooddelivery.order.validation.AuthTestValidator.validateCaller</validator>
+        <controller>com.fooddelivery.order.controller.AuthTestController</controller>
+    </route>
+</routes>

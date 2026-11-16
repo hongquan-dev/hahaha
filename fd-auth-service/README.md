@@ -491,7 +491,7 @@ src/main/java/com/fooddelivery/auth/
 ├── grpc/
 │   ├── UserGrpcService           gRPC UserService/GetUser (vai trò như controller)
 │   ├── BusinessExceptionGrpcHandler  BusinessException → gRPC status + trailer error-code
-│   └── GrpcLoggingInterceptor    log mỗi lời gọi gRPC: method, status, thời gian
+│   └── GrpcLoggingInterceptor    log mỗi lời gọi gRPC: method, service gọi, status, thời gian
 ├── controller/
 │   ├── AuthController            5 API; gắn/xoá cookie
 │   ├── JwksController            GET /auth/.well-known/jwks.json (public key, ngoài API flow)
@@ -650,14 +650,15 @@ Hợp đồng: [`fd-grpc-api/src/main/proto/auth/v1/user_service.proto`](../fd-g
 
 ```
 Client (stub sinh từ .proto) ──HTTP/2, protobuf──> Netty :9081
-  ├─ GrpcLoggingInterceptor          log method, status, thời gian khi lời gọi kết thúc
+  ├─ GrpcLoggingInterceptor          log method, service gọi (x-caller-service), status, thời gian
   ├─ GrpcExceptionHandlerInterceptor (Spring gRPC) bắt exception → BusinessExceptionGrpcHandler
   └─ UserGrpcService.getUser         InternalUserValidator.checkUserId → UserQueryService.getById → UserResponse
 ```
 
 - Không có API flow (`api-routes.xml`, JSON Schema) cho gRPC: cấu trúc message do protobuf đảm bảo, giá trị do
   `UserGrpcService` tự kiểm tra bằng **cùng** hàm `InternalUserValidator.checkUserId` với HTTP.
-- Lỗi: `BusinessException` → mã gRPC tương ứng + mã lỗi nghiệp vụ trong trailer `error-code`:
+- Lỗi: `BusinessException` → mã gRPC tương ứng + mã lỗi nghiệp vụ trong trailer `error-code`. Tên các metadata
+  (`error-code`, `x-caller-service`) là hằng số trong `GrpcMetadataKeys` của `fd-grpc-api`, dùng chung với client:
 
 | HTTP | gRPC | `error-code` | Khi nào |
 |---:|---|---|---|

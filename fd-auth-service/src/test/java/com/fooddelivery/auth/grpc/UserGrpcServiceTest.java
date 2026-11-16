@@ -3,6 +3,7 @@ package com.fooddelivery.auth.grpc;
 import com.fooddelivery.auth.common.model.User;
 import com.fooddelivery.auth.repository.UserRepository;
 import com.fooddelivery.auth.service.user.UserQueryService;
+import com.fooddelivery.grpc.GrpcMetadataKeys;
 import com.fooddelivery.grpc.auth.v1.GetUserRequest;
 import com.fooddelivery.grpc.auth.v1.UserResponse;
 import com.fooddelivery.grpc.auth.v1.UserServiceGrpc;
@@ -88,7 +89,7 @@ class UserGrpcServiceTest {
         StatusRuntimeException e = call(USER_ID);
 
         assertThat(e.getStatus().getCode()).isEqualTo(Status.Code.NOT_FOUND);
-        assertThat(e.getTrailers().get(BusinessExceptionGrpcHandler.ERROR_CODE)).isEqualTo("USER_NOT_FOUND");
+        assertThat(e.getTrailers().get(GrpcMetadataKeys.ERROR_CODE)).isEqualTo("USER_NOT_FOUND");
     }
 
     @Test
@@ -97,7 +98,7 @@ class UserGrpcServiceTest {
             StatusRuntimeException e = call(userId);
 
             assertThat(e.getStatus().getCode()).as("userId=%s", userId).isEqualTo(Status.Code.INVALID_ARGUMENT);
-            assertThat(e.getTrailers().get(BusinessExceptionGrpcHandler.ERROR_CODE)).isEqualTo("INVALID_USER_ID");
+            assertThat(e.getTrailers().get(GrpcMetadataKeys.ERROR_CODE)).isEqualTo("INVALID_USER_ID");
         }
         verifyNoInteractions(userRepository);
     }

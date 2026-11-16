@@ -327,24 +327,37 @@ chạy song song 2 server như thế nào; `StreamObserver` và vì sao không d
 
 ### P6.1 Nền tảng
 
-- [ ] `pom.xml`: thay `spring-boot-starter-web` bằng `common-lib`, thêm `fd-grpc-api` và
-      `spring-boot-starter-grpc-client`
-- [ ] Database theo D9 (`FD_order_db` rỗng), `api-routes.xml`, `log4j2-spring.xml`, `application.properties` có comment
-- [ ] Property: `services.auth.http-url=http://localhost:8081`,
-      `spring.grpc.client.channel.auth.address=static://localhost:9081`
+- [x] `pom.xml`: thay `spring-boot-starter-webmvc` bằng `common-lib`, thêm `fd-grpc-api` và
+      `spring-boot-starter-grpc-client` (loại Logback như ở auth). Order giờ log bằng Log4j2 như các service khác
+- [x] Database theo D9: đã tạo `FD_order_db` rỗng (`CREATE DATABASE`), chưa có migration (Flyway chỉ cảnh báo "No
+      migrations found"). `api-routes.xml` (khai báo cả `/order/health` có sẵn), `application.properties` có comment.
+      `log4j2-spring.xml` lấy từ `common-lib`, không cần file riêng
+- [x] Property: `services.auth.http-url=http://localhost:8081`, `services.auth.timeout=2s` (dùng chung cho HTTP và
+      gRPC, `AuthClientProperties`), `spring.grpc.client.channel.auth.target=static://localhost:9081` (tên đúng là
+      `target`, không phải `address`)
+- [x] Stub gRPC tạo bằng `@ImportGrpcClients(target = "auth", ...)` trong `GrpcClientConfig`; kênh kết nối lười, nên
+      order khởi động được khi auth chưa chạy
 
 ### P6.2 API test HTTP: `GET /order/test/auth-http`
 
-- [ ] Lấy `userId` từ header `X-User-Id` (gateway đã gắn). Không có header → 401 `UNAUTHENTICATED`
-- [ ] `AuthHttpClient` (Spring `RestClient`, timeout 2s) gọi `GET /internal/users/{userId}`
-- [ ] Ánh xạ lỗi theo D10
+- [x] Lấy `userId` từ header `X-User-Id` (gateway đã gắn). Không có header → 401 `UNAUTHENTICATED`
+      (`AuthTestValidator.validateCaller`, cũng kiểm tra đúng 14 chữ số)
+- [x] `AuthHttpClient` (Spring `RestClient` trên JDK `HttpClient`, timeout connect + read 2s) gọi
+      `GET /internal/users/{userId}`, đọc `data` của `ApiResponse`
+- [x] Ánh xạ lỗi theo D10: 4xx của auth giữ nguyên status và mã lỗi (vd. 404 `USER_NOT_FOUND`); không kết nối được /
+      quá giờ → 503 `AUTH_UNAVAILABLE`; 5xx hoặc body không đọc được → **502** `AUTH_CALL_FAILED` (thay cho 500 trong
+      kế hoạch: lỗi nằm ở service phía sau, 502 Bad Gateway đúng nghĩa hơn)
 
 ### P6.3 API test gRPC: `GET /order/test/auth-grpc`
 
-- [ ] `AuthGrpcClient` bọc `UserServiceBlockingStub`, mỗi lời gọi có `withDeadlineAfter(2s)`
-- [ ] Ánh xạ `StatusRuntimeException`: `NOT_FOUND` → 404 `USER_NOT_FOUND`; `UNAVAILABLE`/`DEADLINE_EXCEEDED` → 503
-      `AUTH_UNAVAILABLE`; còn lại → 500 `AUTH_CALL_FAILED`
-- [ ] Client interceptor gắn `x-user-id` và trace id vào metadata (chuẩn bị cho phần bảo mật sau này)
+- [x] `AuthGrpcClient` bọc `UserServiceBlockingStub`, mỗi lời gọi có `withDeadlineAfter(services.auth.timeout)`
+- [x] Ánh xạ `StatusRuntimeException`: `NOT_FOUND` → 404, `INVALID_ARGUMENT` → 400, giữ mã lỗi từ trailer
+      `error-code`; `UNAVAILABLE`/`DEADLINE_EXCEEDED` → 503 `AUTH_UNAVAILABLE`; còn lại → 502 `AUTH_CALL_FAILED`
+      (cùng quy ước với HTTP)
+- [x] Client interceptor: `CallerServiceClientInterceptor` gắn `x-caller-service: service-order` vào mọi lời gọi; auth
+      ghi vào log (`caller=service-order`). Bỏ `x-user-id` (đã nằm trong request) và trace id (chưa có hạ tầng tracing,
+      để giai đoạn sau). Tên metadata (`error-code`, `x-caller-service`) đặt chung trong `GrpcMetadataKeys` của
+      `fd-grpc-api`, auth và order dùng cùng một hằng số
 
 ### P6.4 Response chung của 2 API
 
@@ -359,6 +372,20 @@ chạy song song 2 server như thế nào; `StreamObserver` và vì sao không d
 - Tắt auth (vẫn giữ token hợp lệ, JWKS gateway đã cache) → cả hai trả 503 `AUTH_UNAVAILABLE` trong khoảng 2 giây,
   không treo
 - Gọi mỗi API khoảng 20 lần rồi so `elapsedMs` của HTTP với gRPC (chỉ để quan sát, không phải điều kiện đạt)
+
+Kết quả tôi đã chạy (gateway ở 18080; auth 8081 + 9081, order 8083):
+- `./mvnw install`: auth 65/65, order 15/15 (`AuthHttpClientTest` 6 với HTTP server thật, `AuthGrpcClientTest` 7 với
+  gRPC server in-process, `AuthTestValidatorTest` 2), gateway 26/26
+- Login qua gateway → `auth-http` và `auth-grpc` đều 200, cùng `user` `{id: 17947973411001, username: p0test_97341,
+  phoneNumber: +84994797341, role: CUSTOMER, active: true}`, khác `transport`
+- Log auth: `[gRPC] .../GetUser | caller=service-order, status=OK`
+- Không login → 401 `UNAUTHENTICATED` từ gateway; log order không có dòng nào cho request này
+- Gọi thẳng order (bỏ qua gateway) không có `X-User-Id` → 401 từ `AuthTestValidator`
+- Gọi thẳng order với `X-User-Id` không tồn tại → cả hai transport 404 `USER_NOT_FOUND`, cùng message
+- Tắt auth → cả hai 503 `AUTH_UNAVAILABLE` ngay (kết nối bị từ chối). Trường hợp auth treo không trả lời: unit test
+  của cả hai client xác nhận dừng sau timeout và trả 503
+- `elapsedMs`, 20 lần mỗi loại sau khi đã khởi động: HTTP min 4 / median 5 / p90 9 / max 11 ms; gRPC min 3 /
+  median 4 / p90 6 / max 8 ms. Lần gọi gRPC đầu tiên 308 ms vì kênh mới kết nối (lười)
 - [ ] Đạt:
 
 **Trao đổi:** đi từng bước một lời gọi gRPC từ order sang auth (serialize, HTTP/2, deadline, status trailer); vì sao

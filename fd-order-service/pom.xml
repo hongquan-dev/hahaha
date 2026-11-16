@@ -14,9 +14,39 @@
     <description>Order Management Service</description>
 
     <dependencies>
+        <!-- Every runtime library of the services: Spring MVC, the API flow (api-routes.xml, validators), ApiResponse,
+             BusinessException, Log4j2, JPA and Flyway (database FD_order_db) -->
+        <dependency>
+            <groupId>com.fooddelivery</groupId>
+            <artifactId>common-lib</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+
+        <!-- Generated classes of the .proto contracts, e.g. UserServiceGrpc.UserServiceBlockingStub -->
+        <dependency>
+            <groupId>com.fooddelivery</groupId>
+            <artifactId>fd-grpc-api</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+
+        <!-- gRPC client: channels from spring.grpc.client.channel.*, stubs from @ImportGrpcClients. Its Logback
+             starter is excluded: the services log with Log4j2 and both on the classpath fail at the first logger -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webmvc</artifactId>
+            <artifactId>spring-boot-starter-grpc-client</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- In-memory gRPC server and channel for AuthGrpcClientTest: real stubs and status codes, no port -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-inprocess</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>
