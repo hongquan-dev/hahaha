@@ -83,6 +83,7 @@ AUTH_JWT_ACCESSTTL=10s mvn spring-boot:run
 | `POST` | `/auth/refresh` | (không) | 200 + 2 cookie mới | Làm mới phiên (rotation) |
 | `POST` | `/auth/logout` | (không) | 200 + xoá 2 cookie | Kết thúc phiên; luôn 200 |
 | `GET` | `/auth/.well-known/jwks.json` | (không) | 200 + JWK Set | Public key để kiểm tra access token (xem 4.1) |
+| `GET` | `/internal/users/{userId}` | (không) | 200 + user | **Nội bộ**, cho service khác (vd. order). Gateway không route `/internal/**` |
 
 Mọi response (trừ JWKS, xem 4.1) đều theo định dạng chung `ApiResponse` của `common-web-lib`:
 
@@ -150,6 +151,7 @@ Request
 | `GET /auth/me` | (không) | (không) | `AuthService.currentUser` |
 | `POST /auth/refresh` | (không) | (không) | `SessionService.refresh` |
 | `POST /auth/logout` | (không) | (không) | `SessionService.end` |
+| `GET /internal/users/{userId}` | (không) | `InternalUserValidator.validateGetUser` | `UserQueryService.getById` |
 
 `BusinessException` ném ra từ service được `GlobalExceptionHandler` (`common-web-lib`) chuyển thành response lỗi.
 Riêng `/auth/refresh` bắt lỗi 401 ngay trong controller để gắn thêm header xoá cookie.
@@ -485,8 +487,10 @@ src/main/java/com/fooddelivery/auth/
 ├── controller/
 │   ├── AuthController            5 API; gắn/xoá cookie
 │   ├── JwksController            GET /auth/.well-known/jwks.json (public key, ngoài API flow)
+│   ├── InternalUserController    GET /internal/users/{userId} (cho service khác)
 │   └── TestController            GET /auth/test/ping
-├── dto/                          RegisterRequest, LoginRequest (body), UserDto (response)
+├── dto/                          RegisterRequest, LoginRequest (body), UserDto (response),
+│                                 InternalUserDto (user trả cho service khác: không có email, hash)
 ├── repository/                   UserRepository, RefreshTokenRepository (findByTokenHashForUpdate, revokeFamily)
 ├── service/
 │   ├── auth/                     tài khoản
@@ -495,16 +499,19 @@ src/main/java/com/fooddelivery/auth/
 │   ├── session/                  phiên đăng nhập
 │   │   ├── SessionService        start, refresh (rotation), end
 │   │   └── IssuedTokens          access + refresh token + 2 mốc hết hạn
+│   ├── user/UserQueryService     tra cứu user cho service khác (dùng chung HTTP và gRPC)
 │   └── token/                    token
 │       ├── TokenService          ký/kiểm tra JWT, sinh/băm refresh token
 │       └── AccessTokenVerification  VALID / EXPIRED / INVALID
-├── validation/AuthValidator      validateRegister, validateLogin
+├── validation/
+│   ├── AuthValidator             validateRegister, validateLogin
+│   └── InternalUserValidator     validateGetUser (userId là ID 14 số của user)
 └── web/
     ├── AuthCookies               dựng/xoá 2 cookie, tên cookie là hằng số
     └── OriginCheckFilter         chống CSRF
 
 src/main/resources/
-├── api-routes.xml                khai báo 5 route
+├── api-routes.xml                khai báo 7 route (5 API auth, ping, internal users)
 ├── application.properties
 └── schemas/                      register.json, login.json
 ```
@@ -547,7 +554,7 @@ Frontend mẫu (React + TS + Vite): `Food Delivery/hehehe`. Các điểm bắt b
 
 ## 12. Kiểm thử
 
-### Unit test: 54 test, `mvn test -pl fd-auth-service`
+### Unit test: 60 test, `mvn test -pl fd-auth-service`
 
 | Test | Số test | Nội dung chính |
 |---|---:|---|
@@ -557,6 +564,8 @@ Frontend mẫu (React + TS + Vite): `Food Delivery/hehehe`. Các điểm bắt b
 | `AuthCookiesTest` | 7 | Đủ thuộc tính cookie; `Max-Age` theo mốc sớm hơn; bản xoá cùng tên và `Path`; tắt `Secure` |
 | `OriginCheckFilterTest` | 7 | GET; không có `Origin`; `Origin` hợp lệ, viết hoa; POST/PUT/PATCH/DELETE từ origin lạ; khác port; `Origin: null` |
 | `IdentifierNormalizerTest` | 3 | Các dạng SĐT; đầu số hợp lệ; `null` |
+| `InternalUserValidatorTest` | 3 | ID user hợp lệ; `abc`, quá ngắn/dài, số âm, rỗng; ID của order; chữ số loại không tồn tại |
+| `UserQueryServiceTest` | 3 | Trả user không kèm hash/email; user bị khoá trả `active=false`; không có → 404 `USER_NOT_FOUND` |
 | `JwksControllerTest` | 3 | Header `Content-Type`, `Cache-Control`; chỉ có tham số public kèm `kid`, `use`, `alg`; token ký bằng private key kiểm tra được bằng key đọc lại từ JWKS |
 
 ### Kiểm thử thủ công đã chạy (curl + PostgreSQL)
@@ -584,6 +593,7 @@ dùng lại refresh token cũ → thông báo "lý do bảo mật"; mất cookie
 | 400 | `INVALID_REQUEST_BODY` | register, login | Body sai cấu trúc (schema) |
 | 400 | `INVALID_REGISTER_INFO` | register | Giá trị field sai, kèm `errors` |
 | 400 | `INVALID_LOGIN_INFO` | login | Thiếu giá trị hoặc quá dài, kèm `errors` |
+| 400 | `INVALID_USER_ID` | internal users | `userId` không phải ID 14 số của user, kèm `errors` |
 | 401 | `INVALID_CREDENTIALS` | login | Không có tài khoản hoặc sai mật khẩu |
 | 401 | `TOKEN_EXPIRED` | me | Access token thật nhưng hết hạn |
 | 401 | `UNAUTHENTICATED` | me | Thiếu/sai access token; user không còn hoặc bị khoá |
@@ -592,6 +602,7 @@ dùng lại refresh token cũ → thông báo "lý do bảo mật"; mất cookie
 | 403 | `ACCOUNT_DISABLED` | login | Đúng mật khẩu nhưng tài khoản bị khoá |
 | 403 | `ORIGIN_NOT_ALLOWED` | mọi POST/PUT/PATCH/DELETE | `Origin` không nằm trong whitelist |
 | 404 | `API_NOT_FOUND` | (mọi path) | API chưa khai báo trong `api-routes.xml` |
+| 404 | `USER_NOT_FOUND` | internal users | Không có user với ID này |
 | 409 | `USER_ALREADY_EXISTS` | register | Trùng username/email/SĐT, kèm `errors` |
 | 409 | `REFRESH_CONFLICT` | refresh | Tab khác vừa refresh ≤ 10 giây trước; cookie **không** bị xoá |
 

@@ -239,17 +239,31 @@ client gửi lên; khi đổi khoá thì cache JWKS hoạt động thế nào.
 
 ## P4. Auth: API HTTP nội bộ để order gọi
 
-- [ ] Route `GET /internal/users/{userId}` trong `api-routes.xml` (không có body nên không có schema; có validator kiểm
-      tra `userId` là số 14 chữ số)
-- [ ] `InternalUserController` → `UserQueryService.getById(userId)` trả về `id`, `username`, `fullName`, `phoneNumber`,
-      `role`, `active`. Không trả email nếu không cần, **không bao giờ** trả password hash
-- [ ] Không có user → 404 `USER_NOT_FOUND`
-- [ ] `UserQueryService` được dùng chung cho cả HTTP (P4) và gRPC (P5): logic chỉ viết một lần
+- [x] Route `GET /internal/users/{userId}` trong `api-routes.xml` (không có body nên không có schema; có validator kiểm
+      tra `userId` là số 14 chữ số). `InternalUserValidator.validateGetUser` kiểm tra thêm chữ số thứ 11 là mã loại
+      `USER` (ID của order hay loại khác bị từ chối), vẫn không truy vấn DB. Sai → 400 `INVALID_USER_ID` kèm lỗi field
+- [x] `InternalUserController` → `UserQueryService.getById(userId)` trả về `id`, `username`, `phoneNumber`, `role`,
+      `active` (`InternalUserDto`). Bảng `users` không có `fullName` nên bỏ field này. Không trả email,
+      **không bao giờ** trả password hash. User bị khoá vẫn trả về với `active=false`, để service gọi tự quyết định
+- [x] Không có user → 404 `USER_NOT_FOUND`
+- [x] `UserQueryService` được dùng chung cho cả HTTP (P4) và gRPC (P5): logic chỉ viết một lần
+- [x] README của auth (danh sách API, bảng luồng, cấu trúc source, bảng test, bảng mã lỗi; sửa số route cũ bị lệch) và
+      Postman: 3 request "Internal - ..." dùng biến `authInternalUrl` (8081, vì gateway không route `/internal/**`);
+      request Login lưu `userId` cho request sau
 
 **Kiểm tra:**
 - `curl http://localhost:8081/internal/users/<id thật>` → 200 với đúng dữ liệu, không có field `password`
 - Id không tồn tại → 404 `USER_NOT_FOUND`; id dạng `abc` → 400 kèm lỗi field `userId`
 - `curl http://localhost:8080/internal/users/<id>` → 404 (gateway không mở ra ngoài)
+
+Kết quả tôi đã chạy (gateway ở 18080):
+- Unit test auth: 60/60 pass (54 cũ + `InternalUserValidatorTest` 3 + `UserQueryServiceTest` 3)
+- `GET :8081/internal/users/17947973411001` → 200, `data` = `id`, `username`, `phoneNumber`, `role`, `active`;
+  không có `email`, `password`
+- `17000000001000` (đúng định dạng user, không có trong DB) → 404 `USER_NOT_FOUND`
+- `abc` → 400 `INVALID_USER_ID`, `errors: [{field: "userId"}]`; ID của order (`17947973414001`) → 400 như trên
+- `POST` cùng path → 405 (Spring MVC trả trước API flow, giống mọi route khác)
+- Qua gateway → 404, request không tới auth
 - [ ] Đạt:
 
 **Trao đổi:** khác nhau giữa API public và API nội bộ; vì sao chưa cần bảo mật thêm cho API này (D11) và sau này cần gì.

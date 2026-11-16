@@ -44,6 +44,15 @@
         <controller>com.fooddelivery.auth.controller.AuthController</controller>
     </route>
 
+    <!-- Internal: a user for another service, e.g. order-service (the gateway has no route for /internal/**). No body,
+         so no schema; the validator checks that userId is a 14-digit user ID, UserQueryService that it exists -->
+    <route>
+        <method>GET</method>
+        <path>/internal/users/{userId}</path>
+        <validator>com.fooddelivery.auth.validation.InternalUserValidator.validateGetUser</validator>
+        <controller>com.fooddelivery.auth.controller.InternalUserController</controller>
+    </route>
+
     <!-- Test API: owner and lifetime of the access_token cookie, used by the frontend to check the session and the
          refresh token. No body, so no schema or validator; the token is checked by PingService -->
     <route>

@@ -16,6 +16,14 @@
     {
       "key": "registerPhone",
       "value": ""
+    },
+    {
+      "key": "authInternalUrl",
+      "value": "http://localhost:8081"
+    },
+    {
+      "key": "userId",
+      "value": ""
     }
   ],
   "item": [
@@ -170,7 +178,8 @@
               "  const cookies = pm.response.headers.filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value);",
               "  pm.expect(cookies.some(v => v.startsWith('access_token='))).to.be.true;",
               "  pm.expect(cookies.some(v => v.startsWith('refresh_token='))).to.be.true;",
-              "});"
+              "});",
+              "if (pm.response.code === 200) { pm.collectionVariables.set('userId', String(pm.response.json().data.id)); }"
             ]
           }
         }
@@ -331,6 +340,108 @@
           ]
         },
         "description": "200 + JWK Set chuẩn (không bọc ApiResponse): public key để gateway và các service khác tự kiểm tra access token. Không cần cookie. Chỉ có n, e, không bao giờ có d, p, q. kid trùng auth.jwt.key-id."
+      }
+    },
+    {
+      "name": "Internal - Get user",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 + user without email or password', () => {",
+              "  pm.response.to.have.status(200);",
+              "  const user = pm.response.json().data;",
+              "  pm.expect(String(user.id)).to.eql(pm.collectionVariables.get('userId'));",
+              "  pm.expect(user).to.have.all.keys('id', 'username', 'phoneNumber', 'role', 'active');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{authInternalUrl}}/internal/users/{{userId}}",
+          "host": [
+            "{{authInternalUrl}}"
+          ],
+          "path": [
+            "internal",
+            "users",
+            "{{userId}}"
+          ]
+        },
+        "description": "API nội bộ, gọi thẳng auth-service (authInternalUrl, port 8081) vì gateway không route /internal/**. userId lấy từ response của Login. 200 + id, username, phoneNumber, role, active; không có email, password."
+      }
+    },
+    {
+      "name": "Internal - Get user (không tồn tại -> 404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('404 USER_NOT_FOUND', () => {",
+              "  pm.response.to.have.status(404);",
+              "  pm.expect(pm.response.json().code).to.eql('USER_NOT_FOUND');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{authInternalUrl}}/internal/users/17000000001000",
+          "host": [
+            "{{authInternalUrl}}"
+          ],
+          "path": [
+            "internal",
+            "users",
+            "17000000001000"
+          ]
+        },
+        "description": "ID đúng định dạng user nhưng không có trong database: 404 USER_NOT_FOUND."
+      }
+    },
+    {
+      "name": "Internal - Get user (sai định dạng -> 400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('400 INVALID_USER_ID on field userId', () => {",
+              "  pm.response.to.have.status(400);",
+              "  pm.expect(pm.response.json().code).to.eql('INVALID_USER_ID');",
+              "  pm.expect(pm.response.json().errors[0].field).to.eql('userId');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{authInternalUrl}}/internal/users/abc",
+          "host": [
+            "{{authInternalUrl}}"
+          ],
+          "path": [
+            "internal",
+            "users",
+            "abc"
+          ]
+        },
+        "description": "userId không phải ID 14 số của user (vd. abc, hoặc ID của order): 400 INVALID_USER_ID kèm lỗi field userId."
       }
     }
   ]
