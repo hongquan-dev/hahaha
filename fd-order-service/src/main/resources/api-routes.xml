@@ -7,8 +7,9 @@
         <controller>com.fooddelivery.order.controller.OrderController</controller>
     </route>
 
-    <!-- Test API: the caller fetched from auth-service over HTTP (GET /internal/users/{userId}). No body, so no schema;
-         the validator checks the X-User-Id header set by the gateway, AuthHttpClient maps the errors of auth-service -->
+    <!-- Test API: the caller fetched from auth-service over HTTP (GET /internal/users/{userId}). No body, so no
+         schema; the validator checks the X-User-Id header set by the gateway, AuthHttpClient maps the errors of
+         auth-service -->
     <route>
         <method>GET</method>
         <path>/order/test/auth-http</path>

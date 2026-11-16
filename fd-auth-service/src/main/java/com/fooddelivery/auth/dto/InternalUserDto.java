@@ -6,8 +6,8 @@ import com.fooddelivery.auth.common.model.User;
  * User returned to other services, by {@code GET /internal/users/{userId}} and by the gRPC {@code UserService.GetUser},
  * so both transports return the same fields.
  *
- * <p>Only what another service needs to show or check a user, e.g. the customer of an order: no password hash, no email,
- * no timestamps.
+ * <p>Only what another service needs to show or check a user, e.g. the customer of an order: no password hash, no
+ * email, no timestamps.
  *
  * @param id          14-digit ID from {@code IdUtils}, e.g. {@code 17939313751001}
  * @param username    lowercase

@@ -70,7 +70,8 @@
             <version>${food-delivery-libs.version}</version>
         </dependency>
 
-        <!-- API flow: route allow list (api-routes.xml), JSON Schema check, validator call. Every service needs an api-routes.xml -->
+        <!-- API flow: route allow list (api-routes.xml), JSON Schema check, validator call. Every service needs an
+             api-routes.xml -->
         <dependency>
             <groupId>com.fooddelivery</groupId>
             <artifactId>common-api-flow-lib</artifactId>

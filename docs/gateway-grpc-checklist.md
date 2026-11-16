@@ -395,14 +395,32 @@ bọc stub trong adapter; so sánh hai cách gọi về code, lỗi và hiệu n
 
 ## P7. Hoàn thiện
 
-- [ ] Mọi class, method, file cấu hình mới có comment theo `CLAUDE.md`; `api-routes.xml` có comment cho từng route
-- [ ] Không chỗ nào log token, password
-- [ ] Postman: cập nhật collection auth sang 8080, thêm `postman/fd-order-service.postman_collection.json` (2 API test)
-      và một request gRPC (hoặc ghi lệnh `grpcurl` vào README)
-- [ ] README: bảng port (8080, 8081, 9081, 8083), thứ tự khởi động, cách tạo `FD_order_db`, cách test gRPC
-- [ ] `mvn clean install` ở root: BUILD SUCCESS, toàn bộ test pass
+- [x] Mọi class, method, file cấu hình mới có comment theo `CLAUDE.md`; `api-routes.xml` có comment cho từng route.
+      Rà tự động mọi file `.java`/`.xml`/`.properties`/`.proto` đã đổi từ P0: không có comment cuối dòng, banner,
+      `@author`; mọi type public đều có Javadoc. Sửa 4 dòng dài quá 120 ký tự (1 dòng có từ trước, trong
+      `common-lib/pom.xml`)
+- [x] Không chỗ nào log token, password (rà các lệnh log; log chỉ có lý do, ID, số lượng). P3 đã kiểm tra trên log
+      thật: không dòng nào chứa token
+- [x] Postman: collection auth chuyển `baseUrl` sang 8080 (request `Internal - ...` vẫn dùng `authInternalUrl` 8081),
+      thêm `postman/fd-order-service.postman_collection.json` (9 request, đều có test script). gRPC: Postman collection
+      v2.1 không chứa được request gRPC, nên lệnh `grpcurl` ghi trong README của auth (mục 15)
+- [x] README: bảng port (8080, 8081, 9081, 8083), thứ tự khởi động, cách tạo `FD_order_db`, cách test gRPC (README
+      gốc: mục Build và "Chạy gateway, auth và order"). Sửa dòng health check của auth trong bảng port (trỏ tới
+      `/auth/health` không tồn tại, đổi sang JWKS). Thêm `fd-order-service/README.md`
+- [x] `./mvnw clean install` ở root (thay cho `mvn`, xem P5): BUILD SUCCESS, toàn bộ test pass
 
 **Kiểm tra:** người khác clone repo, đọc README, khởi động 3 service và chạy được toàn bộ Postman collection.
+
+Kết quả tôi đã chạy (khởi động lại từ đầu sau `./mvnw clean install`, gateway ở 18080; chạy collection bằng
+newman 6.2.3, chỉ đổi `baseUrl`):
+- Build: gateway 26/26, auth 65/65, order 15/15
+- `fd-auth-service` collection: 13/13 request đúng status mong đợi (201, 409, 400, 200, 401, 400, 200, 200, 200, 200,
+  200, 404, 400), 6/6 assertion
+- `fd-order-service` collection (`identifier=p0test_97341`): 9/9 request, 9/9 assertion: HTTP và gRPC cùng user,
+  `X-User-Id` giả bị thay, sau logout 401 từ gateway, gọi thẳng order không có header 401, user không tồn tại 404 qua
+  cả hai transport
+- Dữ liệu thử trong `FD_auth_db`: `p0test_97341` (từ P0) và `user00358278` (request Register của collection auth tạo
+  mỗi lần chạy)
 - [ ] Đạt:
 
 **Trao đổi:** tổng kết kiến trúc, những gì còn thiếu so với production (D11 mTLS/service token, service discovery,
