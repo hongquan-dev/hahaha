@@ -18,7 +18,8 @@ import org.springframework.grpc.server.service.GrpcService;
  *
  * <p>Plays the role of the controller for gRPC: there is no API flow, so it checks the input itself with
  * {@link InternalUserValidator#checkUserId}, then maps between proto messages and {@link UserQueryService}. A
- * {@code BusinessException} thrown here is turned into a gRPC status by {@link BusinessExceptionGrpcHandler}.
+ * {@code BusinessException} thrown here is turned into a gRPC status by {@code BusinessExceptionGrpcHandler} of
+ * fd-grpc-api, registered automatically.
  */
 @GrpcService
 public class UserGrpcService extends UserServiceGrpc.UserServiceImplBase {

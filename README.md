@@ -1,5 +1,8 @@
 # Food Delivery Backend
 
+Tài liệu này hướng dẫn build, chạy và thử. Cấu trúc bên trong (module, vai trò từng class, luồng chạy, sửa ở đâu) xem
+[ARCHITECTURE.md](ARCHITECTURE.md); quy tắc làm việc xem [CLAUDE.md](CLAUDE.md).
+
 ## Build
 
 Dùng **Maven Wrapper** `./mvnw` (Windows: `mvnw.cmd`) ở thư mục gốc, không dùng `mvn` cài trên máy: wrapper tự tải

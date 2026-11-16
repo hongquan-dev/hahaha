@@ -3,6 +3,7 @@ package com.fooddelivery.auth.grpc;
 import com.fooddelivery.auth.common.model.User;
 import com.fooddelivery.auth.repository.UserRepository;
 import com.fooddelivery.auth.service.user.UserQueryService;
+import com.fooddelivery.grpc.support.BusinessExceptionGrpcHandler;
 import com.fooddelivery.grpc.GrpcMetadataKeys;
 import com.fooddelivery.grpc.auth.v1.GetUserRequest;
 import com.fooddelivery.grpc.auth.v1.UserResponse;

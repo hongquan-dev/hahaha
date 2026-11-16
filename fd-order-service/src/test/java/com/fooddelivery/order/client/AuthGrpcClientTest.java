@@ -5,6 +5,7 @@ import com.fooddelivery.grpc.GrpcMetadataKeys;
 import com.fooddelivery.grpc.auth.v1.GetUserRequest;
 import com.fooddelivery.grpc.auth.v1.UserResponse;
 import com.fooddelivery.grpc.auth.v1.UserServiceGrpc;
+import com.fooddelivery.grpc.support.CallerServiceClientInterceptor;
 import com.fooddelivery.order.config.AuthClientProperties;
 import com.fooddelivery.web.exception.BusinessException;
 import io.grpc.ClientInterceptors;

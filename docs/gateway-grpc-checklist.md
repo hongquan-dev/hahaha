@@ -262,7 +262,7 @@ Kết quả tôi đã chạy (gateway ở 18080):
   không có `email`, `password`
 - `17000000001000` (đúng định dạng user, không có trong DB) → 404 `USER_NOT_FOUND`
 - `abc` → 400 `INVALID_USER_ID`, `errors: [{field: "userId"}]`; ID của order (`17947973414001`) → 400 như trên
-- `POST` cùng path → 405 (Spring MVC trả trước API flow, giống mọi route khác)
+- `POST` cùng path → 404 `API_NOT_FOUND` (method chưa khai báo, như mọi route khác; trước đây là 405)
 - Qua gateway → 404, request không tới auth
 - [ ] Đạt:
 

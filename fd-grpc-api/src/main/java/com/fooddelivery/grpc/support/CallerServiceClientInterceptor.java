@@ -1,4 +1,4 @@
-package com.fooddelivery.order.client;
+package com.fooddelivery.grpc.support;
 
 import com.fooddelivery.grpc.GrpcMetadataKeys;
 import io.grpc.CallOptions;
@@ -8,22 +8,20 @@ import io.grpc.ClientInterceptor;
 import io.grpc.ForwardingClientCall;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.grpc.client.GlobalClientInterceptor;
-import org.springframework.stereotype.Component;
 
 /**
- * Adds the {@code x-caller-service} header ({@code GrpcMetadataKeys.CALLER_SERVICE}) with
- * {@code spring.application.name}, e.g. {@code service-order}, to every gRPC call of this application, so the server
- * can log who called it. Applied to every channel ({@code @GlobalClientInterceptor}).
+ * Adds the {@code x-caller-service} header ({@link GrpcMetadataKeys#CALLER_SERVICE}) with
+ * {@code spring.application.name}, e.g. {@code service-order}, to every gRPC call of the application, so the server
+ * can log who called it. Registered by {@link GrpcSupportAutoConfiguration} in every service that uses a gRPC client
+ * and applied to every channel ({@code @GlobalClientInterceptor}).
  */
-@Component
 @GlobalClientInterceptor
 public class CallerServiceClientInterceptor implements ClientInterceptor {
 
     private final String applicationName;
 
-    public CallerServiceClientInterceptor(@Value("${spring.application.name}") String applicationName) {
+    public CallerServiceClientInterceptor(String applicationName) {
         this.applicationName = applicationName;
     }
 

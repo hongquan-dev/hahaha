@@ -4,6 +4,23 @@ Multi-module Maven project gồm các microservice của ứng dụng giao đồ
 `fd-restaurant-service` (8082), `fd-order-service` (8083), `fd-delivery-service` (8084), `fd-chat-service` (8085).
 `common-lib` gom các thư viện dùng chung của `food-delivery-libs` (`common-api-flow-lib`, `common-id-lib`, `common-web-lib`, `common-dto-lib`).
 
+## Tài liệu kiến trúc: đọc trước, cập nhật cùng code
+
+[ARCHITECTURE.md](ARCHITECTURE.md) là bản đồ cấu trúc của repo: module, port và phụ thuộc, vai trò từng class, luồng
+chạy (gateway, đăng nhập, gọi giữa service), database, điểm mở rộng, hợp đồng không được phá, việc thường gặp sửa ở
+đâu. Cấu trúc bên trong thư viện xem `ARCHITECTURE.md` của `food-delivery-libs`.
+
+- **Đọc trước** khi bắt đầu một việc chưa rõ nằm ở đâu, hoặc trước khi đổi cấu trúc. Không cần đọc lại cho một sửa
+  nhỏ trong class đã biết.
+- **Cập nhật trong cùng commit** khi: thêm / xoá / đổi tên / di chuyển class, package hay module; đổi vai trò của một
+  class; thêm test cho class đang ghi "-"; đổi phụ thuộc giữa module, port, route gateway, bảng database; đổi luồng
+  chạy, điểm mở rộng hay một hợp đồng ở mục 7.
+- Viết như bản đồ: mỗi class một dòng, tên class dạng `` `TênClass` ``, không chép code hay chi tiết đã có trong
+  Javadoc/README.
+- `ArchitectureDocTest` (common-lib) fail nếu một module hoặc class trong `src/main/java` không có trong file; sửa bằng
+  cách bổ sung tài liệu, không sửa test.
+- [AGENTS.md](AGENTS.md) chỉ trỏ tới file này và `ARCHITECTURE.md` cho các agent khác; không chép nội dung vào đó.
+
 ## Luồng xử lý một API
 
 Mọi API của service đi qua luồng của `common-api-flow-lib`, mỗi lớp chỉ làm đúng phần của nó:
@@ -33,6 +50,59 @@ các migration còn thiếu khi service khởi động; Hibernate chỉ kiểm t
 - Migration và entity JPA sửa trong **cùng một commit**; khởi động thử service để `validate` xác nhận hai bên khớp.
 - Dữ liệu thử nghiệm của riêng mình (tài khoản test, đơn hàng mẫu) **không** viết thành migration. Khi tạo hay xoá dữ
   liệu như vậy trên database dùng chung, báo lại cho người dùng.
+
+## Test: mọi thay đổi source code phải đi kèm test đúng
+
+Code chỉ được coi là xong khi có test chứng minh nó chạy đúng. Áp dụng cho **mọi module** và **mọi thay đổi**.
+
+- **Có test tương ứng:** mỗi class có logic (service, validator, controller, client, filter, interceptor, util,
+  exception handler, config có điều kiện, compact constructor có kiểm tra...) có class test cùng package trong
+  `src/test/java`, tên `<TênClass>Test`, vd. `UserQueryService` -> `UserQueryServiceTest`. Không bắt buộc với record/DTO
+  không có logic, `*Application`, config chỉ khai báo bean đơn giản.
+- **Thêm code:** viết test trong **cùng commit**, phủ đường đi thành công, từng lỗi (`BusinessException` với đúng status
+  và mã lỗi), trường hợp biên và ngữ nghĩa `null` được ghi trong Javadoc/comment.
+- **Sửa code:** cập nhật test theo hành vi mới; sửa bug thì thêm test tái hiện bug (fail trước khi sửa, pass sau khi
+  sửa). **Xoá / đổi tên / di chuyển code:** xoá, đổi tên, di chuyển test tương ứng, không để test mồ côi.
+- **Không làm test "xanh" bằng cách sai:** không xoá test, không nới assertion, không `@Disabled` để che lỗi. Test fail
+  vì hành vi đổi có chủ đích thì sửa test và ghi rõ lý do trong commit. `@Disabled` chỉ dùng khi có lý do ghi trong
+  annotation, vd. `@Disabled("BUG: ...")`, và phải báo lại cho người dùng.
+- **Unit test không dùng tài nguyên thật:** repository mock bằng Mockito, HTTP server phụ thuộc thay bằng
+  `com.sun.net.httpserver.HttpServer` cục bộ, gRPC bằng server in-process (`grpc-inprocess`), thời gian bằng `Clock` cố
+  định. Ví dụ: `AuthServiceLoginTest`, `AuthHttpClientTest`, `AuthGrpcClientTest`, `UserGrpcServiceTest`.
+- **Trước khi báo xong hoặc commit:** chạy `./mvnw test -pl <module>` cho mọi module bị ảnh hưởng (hoặc `./mvnw clean
+  install` khi đổi module dùng chung như `common-lib`, `fd-grpc-api`); tất cả phải pass. Báo lại số test đã chạy, và
+  nói rõ nếu có phần chưa có test.
+- Test theo cùng quy ước comment bên dưới: mỗi class test có Javadoc ngắn nói test cái gì và bằng cách nào; tên method
+  test là camelCase mô tả hành vi, vd. `unknownUserGivesNotFoundWithErrorCode`; dùng AssertJ.
+
+### Mức độ test: đủ để bắt lỗi, không thừa đến mức cản refactor
+
+Mục tiêu là mỗi hành vi đã hứa (trong Javadoc, mã lỗi, API) đều có test, không phải 100% coverage. Test thừa tốn công
+bảo trì và gãy khi refactor dù hành vi không đổi.
+
+| Loại code | Mức test |
+|---|---|
+| Validator, service nghiệp vụ, client gọi service khác, filter/interceptor, util | **Kỹ:** thành công, từng nhánh lỗi (status + mã lỗi + field lỗi), biên, `null` |
+| Exception handler, mapper, config có điều kiện | Mỗi nhánh/ánh xạ một test |
+| Controller | Mỏng: lấy đúng dữ liệu từ `ApiRequest`, gọi đúng service, đúng status; không test lại validator/service |
+| Record/DTO/entity không logic, getter/setter, `*Application`, config chỉ khai báo bean | Không viết test |
+| Ghép nối giữa các service, luồng qua gateway | Postman collection trong `postman/`, chạy bằng newman khi đổi API |
+
+- **Test hành vi qua API công khai**, không test chi tiết cài đặt: không reflection vào field private, không gọi method
+  private, không assert annotation, thứ tự gọi nội bộ hay số lần gọi mock khi điều đó không phải là hành vi được hứa.
+  Refactor mà không đổi hành vi thì test không được gãy.
+- **Mỗi test kiểm tra một hành vi**, tên nói rõ hành vi đó. Nhiều đầu vào cùng một nhánh thì dùng `@ParameterizedTest`
+  với vài giá trị đại diện và giá trị biên (nhỏ nhất, lớn nhất, ngay ngoài biên), không liệt kê mọi giá trị.
+- **Assert đúng mức:** lỗi nghiệp vụ assert status + mã lỗi + field lỗi; chỉ assert nguyên văn message khi message là
+  thứ client hiển thị. Không assert log.
+- **Không test lại framework và thư viện đã có test** (Spring, Jackson, Hibernate, `common-lib`): vd. không test
+  `ResponseHandler` hay format `ApiResponse` trong service, chỉ test service trả đúng status/mã lỗi.
+- Test đa luồng, hiệu năng chỉ viết khi code hứa điều đó (vd. "thread-safe"). Test timeout dùng timeout ngắn (vài trăm
+  ms), không `Thread.sleep` để chờ.
+- Unit test phải nhanh (cả module vài giây): không khởi động Spring context đầy đủ (`@SpringBootTest`) cho unit test;
+  dùng context runner hoặc dựng object bằng tay.
+- Coverage tham khảo: khoảng **80% dòng** cho phần logic (validator, service, client, util). Đây là chỉ báo để tìm chỗ
+  thiếu, không phải mục tiêu: không viết test vô nghĩa để tăng số.
 
 ## Quy ước comment trong source code
 

@@ -1,4 +1,4 @@
-package com.fooddelivery.auth.grpc;
+package com.fooddelivery.grpc.support;
 
 import com.fooddelivery.grpc.GrpcMetadataKeys;
 import io.grpc.ForwardingServerCall;
@@ -12,20 +12,19 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.core.annotation.Order;
 import org.springframework.grpc.server.GlobalServerInterceptor;
 import org.springframework.grpc.server.exception.GrpcExceptionHandlerInterceptor;
-import org.springframework.stereotype.Component;
 
 /**
  * Logs one line per gRPC call when it ends: method, calling service, status and duration, e.g.
  * {@code [gRPC] fooddelivery.auth.v1.UserService/GetUser | caller=service-order, status=NOT_FOUND (User 17000000001000
- * not found), 3ms}. The caller comes from the {@code GrpcMetadataKeys.CALLER_SERVICE} header, {@code null} if absent
+ * not found), 3ms}. The caller comes from the {@link GrpcMetadataKeys#CALLER_SERVICE} header, {@code null} if absent
  * (e.g. grpcurl).
  *
- * <p>Applied to every gRPC service of this application ({@code @GlobalServerInterceptor}). Ordered just before
- * {@link GrpcExceptionHandlerInterceptor}, i.e. outside it: that interceptor closes a failed call with the status of
- * {@code BusinessExceptionGrpcHandler}, and an interceptor inside it would never see that close, so errors would not be
- * logged. Never logs the messages themselves or the metadata, which may carry tokens.
+ * <p>Registered by {@link GrpcSupportAutoConfiguration} and applied to every gRPC service of the application
+ * ({@code @GlobalServerInterceptor}). Ordered just before {@link GrpcExceptionHandlerInterceptor}, i.e. outside it: that
+ * interceptor closes a failed call with the status of {@link BusinessExceptionGrpcHandler}, and an interceptor inside it
+ * would never see that close, so errors would not be logged. Never logs the messages themselves or the metadata, which
+ * may carry tokens.
  */
-@Component
 @GlobalServerInterceptor
 @Order(GrpcExceptionHandlerInterceptor.ORDER - 1)
 public class GrpcLoggingInterceptor implements ServerInterceptor {

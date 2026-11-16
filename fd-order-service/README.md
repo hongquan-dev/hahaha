@@ -103,8 +103,8 @@ src/main/java/com/fooddelivery/order/
 ├── client/
 │   ├── AuthHttpClient            gọi auth qua HTTP, ánh xạ lỗi thành BusinessException
 │   ├── AuthGrpcClient            gọi auth qua gRPC (bọc stub), ánh xạ status thành BusinessException
-│   ├── AuthUser                  user trả về, chung cho hai client
-│   └── CallerServiceClientInterceptor  gắn x-caller-service vào mọi lời gọi gRPC
+│   └── AuthUser                  user trả về, chung cho hai client
+│                                 (header x-caller-service do CallerServiceClientInterceptor của fd-grpc-api gắn)
 ├── config/
 │   ├── AuthClientProperties      bind services.auth.*
 │   └── GrpcClientConfig          @ImportGrpcClients: tạo bean UserServiceBlockingStub trên kênh "auth"

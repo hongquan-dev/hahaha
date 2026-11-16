@@ -489,9 +489,8 @@ src/main/java/com/fooddelivery/auth/
 │   ├── security/PasswordConfig   BCryptPasswordEncoder
 │   └── web/WebFilterConfig       đăng ký OriginCheckFilter (order HIGHEST_PRECEDENCE + 5)
 ├── grpc/
-│   ├── UserGrpcService           gRPC UserService/GetUser (vai trò như controller)
-│   ├── BusinessExceptionGrpcHandler  BusinessException → gRPC status + trailer error-code
-│   └── GrpcLoggingInterceptor    log mỗi lời gọi gRPC: method, service gọi, status, thời gian
+│   └── UserGrpcService           gRPC UserService/GetUser (vai trò như controller); xử lý lỗi và log gRPC
+│                                 do fd-grpc-api tự đăng ký (BusinessExceptionGrpcHandler, GrpcLoggingInterceptor)
 ├── controller/
 │   ├── AuthController            5 API; gắn/xoá cookie
 │   ├── JwksController            GET /auth/.well-known/jwks.json (public key, ngoài API flow)
@@ -650,8 +649,8 @@ Hợp đồng: [`fd-grpc-api/src/main/proto/auth/v1/user_service.proto`](../fd-g
 
 ```
 Client (stub sinh từ .proto) ──HTTP/2, protobuf──> Netty :9081
-  ├─ GrpcLoggingInterceptor          log method, service gọi (x-caller-service), status, thời gian
-  ├─ GrpcExceptionHandlerInterceptor (Spring gRPC) bắt exception → BusinessExceptionGrpcHandler
+  ├─ GrpcLoggingInterceptor          (fd-grpc-api) log method, service gọi (x-caller-service), status, thời gian
+  ├─ GrpcExceptionHandlerInterceptor (Spring gRPC) bắt exception → BusinessExceptionGrpcHandler (fd-grpc-api)
   └─ UserGrpcService.getUser         InternalUserValidator.checkUserId → UserQueryService.getById → UserResponse
 ```
 

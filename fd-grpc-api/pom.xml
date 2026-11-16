@@ -11,7 +11,9 @@
 
     <artifactId>fd-grpc-api</artifactId>
     <name>food-delivery-grpc-api</name>
-    <description>gRPC contracts (.proto) shared by the services, with the generated Java code</description>
+    <description>gRPC contracts (.proto) shared by the services, with the generated Java code, and the gRPC support
+        every service gets automatically: error handling and logging on the server side, caller header on the client
+        side</description>
 
     <dependencies>
         <!-- Runtime of the generated code: messages (protobuf-java, through grpc-protobuf) and stubs (grpc-stub).
@@ -23,6 +25,49 @@
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-stub</artifactId>
+        </dependency>
+
+        <!-- The gRPC support (package support) and its auto-configuration. Optional: a service using it already has
+             them, through spring-boot-starter-grpc-server/-client (Spring gRPC) and common-lib (BusinessException,
+             Log4j2, auto-configuration), so this module does not force them on anyone -->
+        <dependency>
+            <groupId>org.springframework.grpc</groupId>
+            <artifactId>spring-grpc-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.fooddelivery</groupId>
+            <artifactId>common-web-lib</artifactId>
+            <version>${food-delivery-libs.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Tests: in-process gRPC server and channel; the auto-configuration test also needs the server and client
+             auto-configurations of Spring Boot, without starting a real server -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-inprocess</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-grpc-server</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-grpc-client</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

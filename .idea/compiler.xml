@@ -7,6 +7,7 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="fd-gateway-service" />
+        <module name="fd-grpc-api" />
         <module name="fd-auth-service" />
         <module name="fd-restaurant-service" />
         <module name="fd-order-service" />
@@ -23,6 +24,7 @@
       <module name="fd-chat-service" options="-parameters" />
       <module name="fd-delivery-service" options="-parameters" />
       <module name="fd-gateway-service" options="-parameters" />
+      <module name="fd-grpc-api" options="-parameters" />
       <module name="fd-order-service" options="-parameters" />
       <module name="fd-restaurant-service" options="-parameters" />
       <module name="food-delivery-backend" options="-parameters" />
