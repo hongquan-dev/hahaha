@@ -31,7 +31,7 @@ Thư viện dùng chung `food-delivery-libs` (repo riêng) phải được `mvn 
    ```bash
    ./mvnw spring-boot:run -pl fd-auth-service       # HTTP 8081 + gRPC 9081
    ./mvnw spring-boot:run -pl fd-order-service      # 8083
-   ./mvnw spring-boot:run -pl fd-gateway-service    # 8080
+   ./mvnw spring-boot:run -pl fd-gateway-service    # 8090
    ```
 
 3. Thử bằng Postman: import `postman/fd-auth-service.postman_collection.json` (đăng ký, đăng nhập...) và
@@ -39,7 +39,7 @@ Thư viện dùng chung `food-delivery-libs` (repo riêng) phải được `mvn 
    gRPC thử bằng `grpcurl`, xem mục gRPC trong `fd-auth-service/README.md`.
 
 ```
-Client ──> gateway :8080 ── /auth/**  ─────────────────────────────> auth :8081
+Client ──> gateway :8090 ── /auth/**  (login, register: RateLimit theo IP) ──> auth :8081
                          └─ /order/** (JwtAuth: kiểm tra token, gắn X-User-Id) ──> order :8083
                                                                         ├─ HTTP ─> auth :8081 /internal/users/{id}
                                                                         └─ gRPC ─> auth :9081 UserService/GetUser
@@ -49,13 +49,13 @@ Chi tiết từng bước và kết quả kiểm thử: [`docs/gateway-grpc-chec
 
 ## Service Ports
 
-Client (frontend, Postman) chỉ gọi qua API Gateway `8080`; gateway chuyển `/auth/**` sang auth-service và
+Client (frontend, Postman) chỉ gọi qua API Gateway `8090`; gateway chuyển `/auth/**` sang auth-service và
 `/order/**` (sau khi kiểm tra token) sang order-service. Các port còn lại là nội bộ, không được mở ra ngoài: service
 phía sau tin header `X-User-Id` do gateway gắn, và API `/internal/**`, gRPC chưa có xác thực giữa các service.
 
 | Service | Port | Health check |
 |---|---:|---|
-| API Gateway | `8080` | `GET http://localhost:8080/gateway/health` |
+| API Gateway | `8090` | `GET http://localhost:8090/gateway/health` |
 | Auth Service | `8081` | `GET http://localhost:8081/auth/.well-known/jwks.json` |
 | Auth Service (gRPC) | `9081` | `grpcurl -plaintext localhost:9081 grpc.health.v1.Health/Check` |
 | Restaurant Service | `8082` | `GET http://localhost:8082/restaurant/health` |

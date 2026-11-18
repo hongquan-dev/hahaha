@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -48,4 +49,25 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     @Modifying
     @Query("update RefreshToken t set t.revokedAt = :revokedAt where t.familyId = :familyId and t.revokedAt is null")
     int revokeFamily(@Param("familyId") Long familyId, @Param("revokedAt") Instant revokedAt);
+
+    /**
+     * Deletes up to {@code batchSize} whole families that ended before {@code cutoff}, in their own transaction.
+     *
+     * <p>A token stops being usable at the earliest of its revocation (or its idle expiry if never revoked) and the
+     * family's absolute expiry; a family ends when its last token stops. A live family always has a usable token, so
+     * the replaced tokens that reveal a reused (stolen) token are never deleted while they matter.
+     *
+     * @param cutoff    families that ended before this time are deleted, e.g. now minus the retention
+     * @param batchSize maximum number of families deleted by this call
+     * @return number of tokens deleted, {@code 0} when no family is left to delete
+     */
+    @Transactional
+    @Modifying
+    @Query(value = """
+            DELETE FROM refresh_tokens WHERE family_id IN (
+                SELECT family_id FROM refresh_tokens
+                GROUP BY family_id
+                HAVING max(LEAST(family_expires_at, COALESCE(revoked_at, expires_at))) < :cutoff
+                LIMIT :batchSize)""", nativeQuery = true)
+    int deleteFamiliesEndedBefore(@Param("cutoff") Instant cutoff, @Param("batchSize") int batchSize);
 }

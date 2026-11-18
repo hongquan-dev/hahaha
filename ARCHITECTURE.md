@@ -41,7 +41,7 @@ food-delivery-libs (~/.m2)
 |---|---:|---|---|
 | `common-lib` | - | Không có code Java: gom dependency chung cho service Spring MVC (4 lib của `food-delivery-libs`, JPA, PostgreSQL, Flyway, Log4j2, `spring-security-crypto`, `nimbus-jose-jwt`) và `log4j2-spring.xml` chung | - |
 | `fd-grpc-api` | - | Thư viện (jar), không chạy như service. Hợp đồng gRPC giữa service: file `.proto` (sinh code bằng `protobuf-maven-plugin`), `GrpcMetadataKeys`; và phần hỗ trợ gRPC dùng chung, tự đăng ký vào mọi service có gRPC server/client (`GrpcSupportAutoConfiguration`) | - |
-| `fd-gateway-service` | 8080 | Cổng duy nhất cho client: route `/auth/**`, `/order/**`; kiểm tra access token (`JwtAuth`) trước order | - |
+| `fd-gateway-service` | 8090 | Cổng duy nhất cho client: route `/auth/**`, `/order/**`; kiểm tra access token (`JwtAuth`) trước order | - |
 | `fd-auth-service` | 8081, gRPC 9081 | Tài khoản, đăng nhập, phiên (refresh token), ký access token RS256, JWKS; cung cấp user cho service khác qua HTTP `/internal/**` và gRPC | `FD_auth_db` |
 | `fd-order-service` | 8083 | Đơn hàng (chưa có nghiệp vụ); hiện có hai API test gọi auth qua HTTP và gRPC | `FD_order_db` (chưa có bảng) |
 | `fd-restaurant-service` | 8082 | Nhà hàng, món ăn (chưa có nghiệp vụ) | - |
@@ -87,6 +87,11 @@ Phần hỗ trợ nằm ở package `com.fooddelivery.grpc.support`, đăng ký 
 | `GatewayController` | `controller` | `GET /gateway/health` | (không cần) |
 | `ClockConfig` | `config` | Bean `Clock`, để test dùng thời gian cố định | (không cần) |
 | `JwtAuthGatewayFilterFactory` | `filter` | Filter `JwtAuth`: đọc cookie `access_token`, xoá `X-User-Id`/`X-User-Role` client gửi, gắn lại từ token; sai -> 401/503 | `JwtAuthGatewayFilterFactoryTest` |
+| `RateLimitGatewayFilterFactory` | `filter` | Filter `RateLimit`: giới hạn request theo IP client + path; quá -> 429 `TOO_MANY_REQUESTS` + `Retry-After` | `RateLimitGatewayFilterFactoryTest` |
+| `ErrorResponses` | `filter` | Ghi lỗi dạng `ApiResponse` cho các filter của gateway | (kiểm qua test của hai filter) |
+| `FixedWindowRateLimiter` | `ratelimit` | Đếm request theo key trong cửa sổ cố định, lưu RAM, tự dọn key hết hạn | `FixedWindowRateLimiterTest` |
+| `RateLimitDecision` | `ratelimit` | Cho qua / từ chối kèm thời gian chờ | (record) |
+| `RateLimitProperties` | `ratelimit` | Bind `gateway.rate-limit.*`, kiểm tra giá trị lúc startup | `RateLimitPropertiesTest` |
 | `AccessTokenVerifier` | `auth` | Kiểm tra JWT RS256 (format, `kid`, chữ ký, `iss`, `exp`...), cùng thứ tự với auth-service | `AccessTokenVerifierTest` |
 | `TokenVerification` | `auth` | Kết quả kiểm tra: hợp lệ (userId, role) / hết hạn / sai / không kiểm tra được | (kiểm qua `AccessTokenVerifierTest`) |
 | `PublicKeySource` | `auth` | Interface lấy public key theo `kid` | (interface) |
@@ -107,6 +112,8 @@ Phần hỗ trợ nằm ở package `com.fooddelivery.grpc.support`, đăng ký 
 | `InternalUserValidator` | `validation` | Validator của `/internal/users/{userId}`: ID đúng định dạng user | `InternalUserValidatorTest` |
 | `AuthService` | `service.auth` | Đăng ký (trùng username/email/SĐT), đăng nhập, user hiện tại | `AuthServiceLoginTest` (login, me), `AuthServiceRegisterTest` |
 | `LoginResult` | `service.auth` | User + token của một lần đăng nhập | (record) |
+| `LoginThrottleService` | `service.auth` | Khoá tạm theo tài khoản / identifier sau nhiều lần đăng nhập sai -> 429 `TOO_MANY_LOGIN_ATTEMPTS` | `LoginThrottleServiceTest` |
+| `DataCleanupService` | `service.cleanup` | Job định kỳ: xoá phiên đã chết quá `retention` và dòng `login_failures` hết tác dụng, theo lô | `DataCleanupServiceTest` |
 | `SessionService` | `service.session` | Phiên = chuỗi refresh token: tạo, xoay vòng, phát hiện dùng lại, đăng xuất | `SessionServiceTest` |
 | `IssuedTokens` | `service.session` | Access + refresh token để controller đặt cookie | (record) |
 | `TokenService` | `service.token` | Ký / kiểm tra access token RS256, sinh và hash refresh token; không DB | `TokenServiceTest` |
@@ -120,12 +127,18 @@ Phần hỗ trợ nằm ở package `com.fooddelivery.grpc.support`, đăng ký 
 | `JwtKeyConfig` | `config.security` | Dựng cặp khoá RSA từ `auth.jwt.*`, kiểm tra lúc startup | `JwtKeyConfigTest` |
 | `PasswordConfig` | `config.security` | Bean BCrypt `PasswordEncoder` | (không cần) |
 | `AuthProperties` | `config.properties` | Bind `auth.*`, kiểm tra giá trị lúc startup | `AuthPropertiesTest` |
+| `LoginThrottleProperties` | `config.properties` | Bind `auth.login.*` (số lần sai, cửa sổ, thời gian khoá) | `LoginThrottlePropertiesTest` |
+| `CleanupProperties` | `config.properties` | Bind `auth.cleanup.*` (thời gian giữ lại, kích thước lô) | `CleanupPropertiesTest` |
 | `ClockConfig` | `config.common` | Bean `Clock` | (không cần) |
+| `SchedulingConfig` | `config.common` | Bật scheduler cho `@Scheduled` | (không cần) |
 | `User` | `common.model` | Entity bảng `users` | (entity) |
 | `RefreshToken` | `common.model` | Entity bảng `refresh_tokens` (chỉ lưu hash) | (entity) |
+| `LoginFailure` | `common.model` | Entity bảng `login_failures` (khoá là SHA-256, không lưu identifier) | (entity) |
 | `IdentifierNormalizer` | `common.util` | Chuẩn hoá username/email/SĐT về dạng lưu DB | `IdentifierNormalizerTest` |
+| `LogMasker` | `common.util` | Che bớt email/SĐT trước khi ghi log | `LogMaskerTest` |
 | `UserRepository` | `repository` | JPA `users` | (Spring Data) |
 | `RefreshTokenRepository` | `repository` | JPA `refresh_tokens`, tra theo hash | (Spring Data) |
+| `LoginFailureRepository` | `repository` | JPA `login_failures`: tạo dòng nếu chưa có, khoá dòng khi cập nhật | (Spring Data) |
 | `UserDto` | `dto` | User trả về client (không có hash mật khẩu) | (record) |
 | `InternalUserDto` | `dto` | User trả cho service khác, chung cho HTTP và gRPC | (record) |
 | `LoginRequest` | `dto` | Body `POST /auth/login` | (record) |
@@ -133,7 +146,8 @@ Phần hỗ trợ nằm ở package `com.fooddelivery.grpc.support`, đăng ký 
 | `PingResponse` | `dto` | Data của `/auth/test/ping` | (record) |
 
 Resource: `api-routes.xml` (khai báo 8 API), `schemas/login.json`, `schemas/register.json`,
-`db/migration/V1__create_users_and_refresh_tokens.sql`, `application.properties` (mô tả từng property `auth.*`).
+`db/migration/V1__create_users_and_refresh_tokens.sql`, `V2__add_unique_phone_number_to_users.sql`,
+`V3__create_login_failures.sql`, `application.properties` (mô tả từng property `auth.*`).
 
 ### fd-order-service (`com.fooddelivery.order`)
 
@@ -170,7 +184,8 @@ Chỉ có entry point và health check, chưa dùng `common-lib` hay API flow:
 ### Request từ client
 
 ```
-Client ──> gateway :8080
+Client ──> gateway :8090
+            ├─ POST /auth/login, /auth/register  RateLimit: quá N request/IP/path -> 429 ──> auth :8081
             ├─ /auth/**   ───────────────────────────────────────────────> auth :8081
             └─ /order/**  JwtAuth: cookie access_token -> AccessTokenVerifier (key từ JwksKeyProvider)
                           sai/thiếu -> 401 UNAUTHENTICATED, hết hạn -> 401 TOKEN_EXPIRED, chưa có key -> 503
@@ -184,7 +199,8 @@ Auth có thêm `OriginCheckFilter` trước luồng này.
 ### Đăng nhập và phiên (auth)
 
 ```
-POST /auth/login   AuthValidator -> AuthService.login (BCrypt) -> SessionService.start -> TokenService
+POST /auth/login   AuthValidator -> AuthService.login: LoginThrottleService (bị khoá -> 429) -> BCrypt (sai -> đếm, 401)
+                   -> SessionService.start -> TokenService
                    -> AuthController đặt cookie access_token (JWT RS256, ngắn) + refresh_token (opaque, dài)
 POST /auth/refresh SessionService: refresh token cũ hết hiệu lực, cấp cặp mới; token đã xoay bị dùng lại
                    -> 409 REFRESH_CONFLICT (tab khác vừa refresh) hoặc 401 REFRESH_TOKEN_REUSED (thu hồi cả phiên)
@@ -212,17 +228,21 @@ không kết nối được / quá timeout -> 503 `AUTH_UNAVAILABLE`; lỗi khá
 - Mỗi service sở hữu database riêng (`FD_auth_db`, `FD_order_db`); service không đọc database của service khác.
 - Cấu trúc chỉ đổi qua migration Flyway trong `src/main/resources/db/migration` của service đó; Hibernate
   `ddl-auto=validate`. Quy tắc chi tiết trong `CLAUDE.md`.
-- `FD_auth_db`: bảng `users`, `refresh_tokens` (V1).
+- `FD_auth_db`: bảng `users`, `refresh_tokens` (V1; V2 thêm unique `phone_number`), `login_failures` (V3).
+  `DataCleanupService` xoá định kỳ phiên đã chết quá 7 ngày và dòng `login_failures` hết tác dụng; phiên còn sống
+  không bao giờ bị đụng tới (token đã bị thay của nó cần để phát hiện token bị đánh cắp).
 
 ---
 
 ## 6. Điểm mở rộng và cấu hình
 
 - `application.properties` của mỗi service mô tả từng property. Nhóm chính: `auth.*` (`AuthProperties`: JWT, cookie,
-  thời hạn token, origin cho phép), `gateway.auth.*` (`GatewayAuthProperties`), `services.auth.*`
+  thời hạn token, origin cho phép), `auth.login.*` (`LoginThrottleProperties`), `auth.cleanup.*`
+  (`CleanupProperties`, lịch chạy `auth.cleanup.cron`), `gateway.auth.*`
+  (`GatewayAuthProperties`), `gateway.rate-limit.*` (`RateLimitProperties`), `services.auth.*`
   (`AuthClientProperties`), `spring.grpc.client.channel.auth.target`, `api-flow.*` (thư viện).
 - Route của gateway: `spring.cloud.gateway.server.webflux.routes[*]` trong `application.properties` của gateway; route
-  cần đăng nhập thêm `filters[0]=JwtAuth`.
+  cần đăng nhập thêm `filters[0]=JwtAuth`, route cần chống spam thêm `RateLimit`.
 - Thêm API gRPC: viết `.proto` trong `fd-grpc-api`, implement ở service sở hữu dữ liệu, tạo stub bằng
   `@ImportGrpcClients` ở service gọi. Xử lý lỗi, log và header caller có sẵn nhờ `GrpcSupportAutoConfiguration`,
   service không viết lại.
@@ -251,7 +271,7 @@ không kết nối được / quá timeout -> 503 `AUTH_UNAVAILABLE`; lỗi khá
 | Việc | Sửa ở | Lưu ý |
 |---|---|---|
 | Thêm API vào một service | `api-routes.xml`, `schemas/*.json`, `validation/*Validator`, controller, service | Theo "Luồng xử lý một API" trong `CLAUDE.md`; thêm vào Postman collection |
-| Cho client gọi API qua gateway | `routes[*]` trong `application.properties` của gateway | Cần đăng nhập thì thêm `JwtAuth` |
+| Cho client gọi API qua gateway | `routes[*]` trong `application.properties` của gateway | Cần đăng nhập thì thêm `JwtAuth`; dễ bị spam (login, đăng ký, gửi OTP...) thì thêm `RateLimit` |
 | Đổi bảng / thêm cột | Migration mới `V<n>__...sql` + entity cùng commit | Không sửa migration cũ |
 | Gọi service khác | Client trong `client/` của service gọi (HTTP `RestClient` hoặc stub gRPC) | Ánh xạ lỗi thành `BusinessException`, có timeout/deadline |
 | Thêm API gRPC | `.proto` trong `fd-grpc-api/src/main/proto/<service>/v1/` + `*GrpcService` (server) + stub và `*GrpcClient` (client) | Service thêm dependency `fd-grpc-api` và starter `spring-boot-starter-grpc-server` / `-client` (exclude Logback); lỗi, log, caller header tự có |

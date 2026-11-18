@@ -1,6 +1,6 @@
 # food-delivery-backend
 
-Multi-module Maven project gồm các microservice của ứng dụng giao đồ ăn: `fd-gateway-service` (8080), `fd-auth-service` (8081),
+Multi-module Maven project gồm các microservice của ứng dụng giao đồ ăn: `fd-gateway-service` (8090), `fd-auth-service` (8081),
 `fd-restaurant-service` (8082), `fd-order-service` (8083), `fd-delivery-service` (8084), `fd-chat-service` (8085).
 `common-lib` gom các thư viện dùng chung của `food-delivery-libs` (`common-api-flow-lib`, `common-id-lib`, `common-web-lib`, `common-dto-lib`).
 

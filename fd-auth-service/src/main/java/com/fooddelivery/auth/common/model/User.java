@@ -32,8 +32,8 @@ public class User {
     @Column(name = "email", unique = true)
     private String email;
 
-    // As +84xxxxxxxxx. Not unique in the table; duplicates are rejected by AuthService
-    @Column(name = "phone_number")
+    // As +84xxxxxxxxx
+    @Column(name = "phone_number", unique = true)
     private String phoneNumber;
 
     // e.g. "CUSTOMER". Set by the server, never taken from a request

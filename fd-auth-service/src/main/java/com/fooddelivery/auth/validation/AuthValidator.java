@@ -2,6 +2,7 @@ package com.fooddelivery.auth.validation;
 
 import com.fooddelivery.apiflow.request.ApiRequest;
 import com.fooddelivery.auth.common.util.IdentifierNormalizer;
+import com.fooddelivery.auth.common.util.LogMasker;
 import com.fooddelivery.auth.dto.LoginRequest;
 import com.fooddelivery.auth.dto.RegisterRequest;
 import com.fooddelivery.web.exception.BusinessException;
@@ -32,10 +33,17 @@ import java.util.regex.Pattern;
 public class AuthValidator {
     private static final Logger log = LogManager.getLogger(AuthValidator.class);
 
-    private static final Pattern USERNAME = Pattern.compile("^[a-z0-9._]{3,30}$");
-    // Catches common typos only; proving that the address exists needs a verification email
-    private static final Pattern EMAIL = Pattern.compile("^[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}$");
+    // Starts with a letter: login tries a phone-like identifier as a phone number first, so an all-digit username such
+    // as "0912345678" could never log in if another account has that number
+    private static final Pattern USERNAME = Pattern.compile("^[a-z][a-z0-9._]{2,29}$");
+    // Dots only between characters of the local part, e.g. not ".quan@" or "quan..nguyen@"; domain labels of letters
+    // and digits, with hyphens only inside, e.g. not "@-gmail.com" or "@gmail..com". Catches common typos only;
+    // proving that the address exists needs a verification email
+    private static final Pattern EMAIL = Pattern.compile(
+            "^[a-z0-9_%+-]+(?:\\.[a-z0-9_%+-]+)*@(?:[a-z0-9]+(?:-+[a-z0-9]+)*\\.)+[a-z]{2,}$");
     private static final int MAX_EMAIL_LENGTH = 254;
+    // A login identifier is a username, email or phone number; the longest of them is an email
+    private static final int MAX_IDENTIFIER_LENGTH = MAX_EMAIL_LENGTH;
     private static final int MIN_PASSWORD_LENGTH = 8;
     private static final int MAX_PASSWORD_LENGTH = 64;
     // BCrypt ignores everything after byte 72, so a longer password would be silently truncated. A character can take
@@ -53,16 +61,16 @@ public class AuthValidator {
      */
     public void validateRegister(ApiRequest request) {
         RegisterRequest body = request.getBody(RegisterRequest.class).normalized();
-        // The password is never logged
+        // The password is never logged, the email and phone number only masked
         log.info("[VALIDATE] [{}] {} | username={}, email={}, phoneNumber={}", request.getMethod(), request.getPath(),
-                body.username(), body.email(), body.phoneNumber());
+                body.username(), LogMasker.email(body.email()), LogMasker.phone(body.phoneNumber()));
 
         List<FieldErrorDetail> errors = new ArrayList<>();
         if (isBlank(body.username())) {
             errors.add(new FieldErrorDetail("username", "Username is required"));
         } else if (!USERNAME.matcher(body.username()).matches()) {
             errors.add(new FieldErrorDetail("username",
-                    "Username must be 3-30 characters of letters, digits, '.' or '_'"));
+                    "Username must be 3-30 characters of letters, digits, '.' or '_', starting with a letter"));
         }
 
         if (isBlank(body.password())) {
@@ -105,15 +113,17 @@ public class AuthValidator {
      */
     public void validateLogin(ApiRequest request) {
         LoginRequest body = request.getBody(LoginRequest.class);
-        // The password is never logged
-        log.info("[VALIDATE] [{}] {} | identifier={}", request.getMethod(), request.getPath(), body.identifier());
+        // The password is never logged, the identifier only masked: it may be a password typed in the wrong field
+        log.info("[VALIDATE] [{}] {} | identifier={}", request.getMethod(), request.getPath(),
+                LogMasker.identifier(body.identifier()));
 
+        String identifier = IdentifierNormalizer.strip(body.identifier());
         List<FieldErrorDetail> errors = new ArrayList<>();
-        if (isBlank(body.identifier())) {
+        if (isBlank(identifier)) {
             errors.add(new FieldErrorDetail("identifier", "Username, email or phone number is required"));
-        } else if (body.identifier().trim().length() > MAX_EMAIL_LENGTH) {
+        } else if (identifier.length() > MAX_IDENTIFIER_LENGTH) {
             errors.add(new FieldErrorDetail("identifier",
-                    "Username, email or phone number must be at most " + MAX_EMAIL_LENGTH + " characters"));
+                    "Username, email or phone number must be at most " + MAX_IDENTIFIER_LENGTH + " characters"));
         }
 
         if (isBlank(body.password())) {

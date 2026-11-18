@@ -1,6 +1,5 @@
 package com.fooddelivery.gateway.filter;
 
-import com.fooddelivery.dto.response.ApiResponse;
 import com.fooddelivery.dto.response.ApiStatus;
 import com.fooddelivery.gateway.auth.AccessTokenVerifier;
 import com.fooddelivery.gateway.auth.GatewayAuthProperties;
@@ -12,10 +11,7 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpCookie;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatusCode;
-import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.util.pattern.PathPattern;
@@ -129,12 +125,7 @@ public class JwtAuthGatewayFilterFactory extends AbstractGatewayFilterFactory<Jw
 
     // Ends the exchange here with an ApiResponse error; the service never sees the request
     private Mono<Void> reject(ServerWebExchange exchange, ApiStatus status, String code, String message) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatusCode.valueOf(status.value()));
-        response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-        ApiResponse<Void> body = ApiResponse.<Void>error(code, message, exchange.getRequest().getPath().value())
-                .withStatus(status);
-        return response.writeWith(Mono.just(response.bufferFactory().wrap(jsonMapper.writeValueAsBytes(body))));
+        return ErrorResponses.write(exchange, jsonMapper, status, code, message);
     }
 
     /**

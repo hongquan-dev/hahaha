@@ -17,8 +17,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByEmail(String email);
 
-    // First match: phone_number has no unique constraint, so a registration race could leave two rows
-    Optional<User> findFirstByPhoneNumber(String phoneNumber);
+    Optional<User> findByPhoneNumber(String phoneNumber);
 
     // Duplicate checks at registration (AuthService.register)
     boolean existsByUsername(String username);

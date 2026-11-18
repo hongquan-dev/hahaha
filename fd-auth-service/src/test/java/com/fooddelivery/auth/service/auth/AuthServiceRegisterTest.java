@@ -11,28 +11,40 @@ import com.fooddelivery.dto.response.FieldErrorDetail;
 import com.fooddelivery.id.entity.EntityType;
 import com.fooddelivery.id.entity.IdUtils;
 import com.fooddelivery.web.exception.BusinessException;
+import org.hibernate.exception.ConstraintViolationException;
+import org.hibernate.exception.ConstraintViolationException.ConstraintKind;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.sql.SQLException;
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.hibernate.exception.ConstraintViolationException.ConstraintKind.NOT_NULL;
+import static org.hibernate.exception.ConstraintViolationException.ConstraintKind.UNIQUE;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * Unit tests of {@link AuthService#register}, with a mocked {@link UserRepository} (no duplicates unless a test says
  * otherwise, {@code saveAndFlush} returns the entity it gets) and a real BCrypt encoder at the lowest cost, so the
- * stored hash can be checked against the raw password.
+ * stored hash can be checked against the raw password. A registration race is reproduced by making
+ * {@code saveAndFlush} throw what Spring Data throws when PostgreSQL rejects the insert.
  */
 class AuthServiceRegisterTest {
 
@@ -48,7 +60,7 @@ class AuthServiceRegisterTest {
     void setUp() {
         when(userRepository.saveAndFlush(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
         authService = new AuthService(userRepository, passwordEncoder, mock(SessionService.class),
-                mock(TokenService.class));
+                mock(TokenService.class), mock(LoginThrottleService.class));
     }
 
     @Test
@@ -124,17 +136,54 @@ class AuthServiceRegisterTest {
         verify(userRepository, never()).saveAndFlush(any());
     }
 
-    @Test
-    void uniqueConstraintViolationOnSaveGivesConflictWithoutFieldErrors() {
-        // Another request saved the same username or email between the duplicate check and this save
-        when(userRepository.saveAndFlush(any(User.class)))
-                .thenThrow(new DataIntegrityViolationException("duplicate key value violates unique constraint"));
+    @ParameterizedTest
+    @CsvSource({
+            "uk_users_username,     username,    Username is already taken",
+            "uk_users_email,        email,       Email is already registered",
+            "uk_users_phone_number, phoneNumber, Phone number is already registered",
+            "UK_USERS_EMAIL,        email,       Email is already registered"})
+    void uniqueConstraintViolationOnSaveGivesConflictWithThatField(String constraint, String field, String message) {
+        // Another request saved the same value between the duplicate check and this save
+        when(userRepository.saveAndFlush(any(User.class))).thenThrow(integrityViolation(UNIQUE, constraint));
 
         BusinessException e = registerError();
 
         assertThat(e.getStatus()).isEqualTo(ApiStatus.CONFLICT);
         assertThat(e.getCode()).isEqualTo("USER_ALREADY_EXISTS");
-        assertThat(e.getErrors()).isEmpty();
+        assertThat(e.getErrors()).containsExactly(new FieldErrorDetail(field, message));
+    }
+
+    @Test
+    void otherIntegrityViolationOnSaveIsThrownAsItIs() {
+        for (DataIntegrityViolationException error : List.of(
+                integrityViolation(NOT_NULL, "users_username_not_null"),
+                integrityViolation(UNIQUE, "pk_users"),
+                integrityViolation(UNIQUE, null),
+                new DataIntegrityViolationException("value too long for type character varying(255)"))) {
+            when(userRepository.saveAndFlush(any(User.class))).thenThrow(error);
+
+            assertThat(catchThrowable(() -> authService.register(REQUEST))).isSameAs(error);
+        }
+    }
+
+    @Test
+    void passwordIsHashedBeforeTheDatabaseIsQueried() {
+        PasswordEncoder encoder = spy(passwordEncoder);
+        authService = new AuthService(userRepository, encoder, mock(SessionService.class), mock(TokenService.class),
+                mock(LoginThrottleService.class));
+
+        authService.register(REQUEST);
+
+        InOrder inOrder = inOrder(encoder, userRepository);
+        inOrder.verify(encoder).encode(" Abc@1234 ");
+        inOrder.verify(userRepository).existsByUsername("quan.nguyen");
+    }
+
+    // What Spring Data throws when the database rejects the insert, with Hibernate's violation as the cause
+    private static DataIntegrityViolationException integrityViolation(ConstraintKind kind, String constraint) {
+        return new DataIntegrityViolationException("could not execute statement",
+                new ConstraintViolationException("constraint violated", new SQLException("rejected"), kind,
+                        constraint));
     }
 
     private User savedUser() {

@@ -1,6 +1,6 @@
 # fd-order-service
 
-Service quản lý **đơn hàng** của ứng dụng giao đồ ăn. Chạy ở port `8083`, client gọi qua gateway (`8080`).
+Service quản lý **đơn hàng** của ứng dụng giao đồ ăn. Chạy ở port `8083`, client gọi qua gateway (`8090`).
 
 Hiện mới có nền tảng (API flow, database, gọi sang auth-service) và hai API test so sánh HTTP với gRPC; nghiệp vụ đơn
 hàng chưa làm.
@@ -52,7 +52,7 @@ Postman: [`postman/fd-order-service.postman_collection.json`](../postman/fd-orde
 ## 3. Luồng xử lý
 
 ```
-Client ─> gateway :8080  JwtAuth: kiểm tra cookie access_token (401/503 nếu sai), xoá X-User-Id client gửi,
+Client ─> gateway :8090  JwtAuth: kiểm tra cookie access_token (401/503 nếu sai), xoá X-User-Id client gửi,
           │              gắn X-User-Id / X-User-Role từ token
           ▼
 order :8083

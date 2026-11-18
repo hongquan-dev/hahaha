@@ -13,6 +13,6 @@ public class GatewayController {
 
     @GetMapping("/health")
     public String healthCheck() {
-        return "API Gateway Service is running independently on port 8080!";
+        return "API Gateway Service is running independently on port 8090!";
     }
 }

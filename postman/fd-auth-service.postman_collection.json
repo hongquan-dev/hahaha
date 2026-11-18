@@ -1,13 +1,13 @@
 {
   "info": {
     "name": "fd-auth-service",
-    "description": "API của auth service, gọi qua API Gateway (baseUrl, port 8080) như frontend; riêng các request \"Internal - ...\" gọi thẳng auth-service (authInternalUrl, port 8081) vì gateway không route /internal/**. Đăng ký: AuthValidator kiểm tra định dạng (400 INVALID_REGISTER_INFO), AuthService kiểm tra trùng (409 USER_ALREADY_EXISTS); lỗi trả kèm errors theo từng field. Đăng nhập: token chỉ nằm trong cookie HttpOnly access_token (Path=/, 15 phút) và refresh_token (Path=/auth, 7 ngày, tối đa 30 ngày/phiên); Postman tự lưu và gửi lại cookie theo domain. Chạy theo thứ tự: Register -> Login -> Me -> Refresh -> Me -> Logout -> Me. Postman không gửi header Origin nên không bị OriginCheckFilter chặn. Nếu Postman không gửi lại cookie Secure qua http, chạy service với auth.cookie.secure=false.",
+    "description": "API của auth service, gọi qua API Gateway (baseUrl, port 8090) như frontend; riêng các request \"Internal - ...\" gọi thẳng auth-service (authInternalUrl, port 8081) vì gateway không route /internal/**. Đăng ký: AuthValidator kiểm tra định dạng (400 INVALID_REGISTER_INFO), AuthService kiểm tra trùng (409 USER_ALREADY_EXISTS); lỗi trả kèm errors theo từng field. Đăng nhập: token chỉ nằm trong cookie HttpOnly access_token (Path=/, 15 phút) và refresh_token (Path=/auth, 7 ngày, tối đa 30 ngày/phiên); Postman tự lưu và gửi lại cookie theo domain. Chạy theo thứ tự: Register -> Login -> Me -> Refresh -> Me -> Logout -> Me. Postman không gửi header Origin nên không bị OriginCheckFilter chặn. Nếu Postman không gửi lại cookie Secure qua http, chạy service với auth.cookie.secure=false.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:8080"
+      "value": "http://localhost:8090"
     },
     {
       "key": "registerUsername",

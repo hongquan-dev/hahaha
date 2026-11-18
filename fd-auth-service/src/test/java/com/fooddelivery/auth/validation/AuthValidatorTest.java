@@ -33,7 +33,8 @@ class AuthValidatorTest {
     private static final String EMAIL = "quan@gmail.com";
     private static final String PHONE = "0912345678";
 
-    private static final String USERNAME_FORMAT = "Username must be 3-30 characters of letters, digits, '.' or '_'";
+    private static final String USERNAME_FORMAT =
+            "Username must be 3-30 characters of letters, digits, '.' or '_', starting with a letter";
     private static final String PASSWORD_LENGTH = "Password must be 8-64 characters";
     private static final String PASSWORD_COMPOSITION =
             "Password must contain an uppercase letter, a lowercase letter, a digit and a special character";
@@ -52,6 +53,11 @@ class AuthValidatorTest {
         assertRegisterPasses(" Quan.Nguyen ", PASSWORD, " Quan@Gmail.com ", "0912.345.678");
     }
 
+    @Test
+    void unicodeSpacesPastedAroundRegisterValuesAreIgnored() {
+        assertRegisterPasses(" Quan.Nguyen ", PASSWORD, "quan@gmail.com ", "0912 345 678");
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"0912.345.678", "0912 345 678", "(091) 234-5678", "84912345678", "+84912345678",
             "+84 912 345 678", "0312345678", "0512345678", "0712345678", "0812345678"})
@@ -67,7 +73,7 @@ class AuthValidatorTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"abc", "a.b", "abcdefghijabcdefghijabcdefghij", "0912345678", "quan_nguyen.99"})
+    @ValueSource(strings = {"abc", "a.b", "abcdefghijabcdefghijabcdefghij", "quan_nguyen.99", "Quan2005", "q12"})
     void usernameWithinLengthAndCharacterSetPasses(String username) {
         assertRegisterPasses(username, PASSWORD, EMAIL, PHONE);
     }
@@ -75,6 +81,12 @@ class AuthValidatorTest {
     @ParameterizedTest
     @ValueSource(strings = {"ab", "abcdefghijabcdefghijabcdefghijk", "quan nguyen", "quan-nguyen", "quan@x", "quân"})
     void usernameOutsideLengthOrCharacterSetIsRejected(String username) {
+        assertRegisterRejected(register(username, PASSWORD, EMAIL, PHONE), "username", USERNAME_FORMAT);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0912345678", "2005quan", "_quan", ".quan", "..."})
+    void usernameNotStartingWithALetterIsRejected(String username) {
         assertRegisterRejected(register(username, PASSWORD, EMAIL, PHONE), "username", USERNAME_FORMAT);
     }
 
@@ -141,9 +153,23 @@ class AuthValidatorTest {
     }
 
     @ParameterizedTest
+    @ValueSource(strings = {"a@b.co", "quan.nguyen@gmail.com", "quan+food_99%x@mail-server.edu.vn",
+            "quan@my--domain.com", "quan-@gmail.com"})
+    void wellFormedEmailPasses(String email) {
+        assertRegisterPasses(USERNAME, PASSWORD, email, PHONE);
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = {"quan", "quan@gmail", "quan@@gmail.com", "quan nguyen@gmail.com", "@gmail.com",
             "quan@gmail.c", "quan@.com."})
     void malformedEmailIsRejected(String email) {
+        assertRegisterRejected(register(USERNAME, PASSWORD, email, PHONE), "email", EMAIL_INVALID);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {".quan@gmail.com", "quan.@gmail.com", "quan..nguyen@gmail.com", "quan@gmail..com",
+            "quan@-gmail.com", "quan@gmail-.com", "quan@gmail.com."})
+    void emailWithMisplacedDotOrHyphenIsRejected(String email) {
         assertRegisterRejected(register(USERNAME, PASSWORD, email, PHONE), "email", EMAIL_INVALID);
     }
 
@@ -229,6 +255,13 @@ class AuthValidatorTest {
     @Test
     void loginIdentifierLengthIgnoresSurroundingSpaces() {
         assertLoginPasses("   " + "a".repeat(254) + "   ", PASSWORD);
+        assertLoginPasses(" " + "a".repeat(254) + " ", PASSWORD);
+    }
+
+    @Test
+    void loginIdentifierOfUnicodeSpacesOnlyIsRequired() {
+        assertLoginRejected(login("   ", PASSWORD), "identifier",
+                "Username, email or phone number is required");
     }
 
     @ParameterizedTest

@@ -1,6 +1,8 @@
 package com.fooddelivery.auth.common.util;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,10 +17,23 @@ class IdentifierNormalizerTest {
         assertThat(IdentifierNormalizer.lowerTrim(null)).isNull();
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {" quan ", "\tquan\n", " quan ", " quan ", "　quan"})
+    void stripRemovesSurroundingSpacesOfAnyKind(String typed) {
+        assertThat(IdentifierNormalizer.strip(typed)).isEqualTo("quan");
+    }
+
+    @Test
+    void stripKeepsInnerSpacesAndNull() {
+        assertThat(IdentifierNormalizer.strip(" quan nguyen ")).isEqualTo("quan nguyen");
+        assertThat(IdentifierNormalizer.strip("  ")).isEmpty();
+        assertThat(IdentifierNormalizer.strip(null)).isNull();
+    }
+
     @Test
     void phoneFormsAllNormalizeToPlus84() {
         for (String typed : new String[] {"0912345678", "0912.345.678", "0912-345-678", "(091) 234 5678",
-                "84912345678", "+84912345678", "+84 912 345 678"}) {
+                "84912345678", "+84912345678", "+84 912 345 678", "0912 345 678"}) {
             assertThat(IdentifierNormalizer.normalizePhone(typed)).as(typed).isEqualTo("+84912345678");
         }
         assertThat(IdentifierNormalizer.normalizePhone(null)).isNull();

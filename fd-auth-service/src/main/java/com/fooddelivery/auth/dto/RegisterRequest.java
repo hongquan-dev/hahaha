@@ -9,7 +9,8 @@ import com.fooddelivery.auth.common.util.IdentifierNormalizer;
  * {@code AuthValidator.validateRegister}, duplicates with existing accounts by {@code AuthService.register}. Each step
  * works on {@link #normalized()}, so the value that is checked is the value that is stored.
  *
- * @param username    3-30 characters of {@code a-z}, {@code 0-9}, {@code .} and {@code _}, case-insensitive
+ * @param username    3-30 characters of {@code a-z}, {@code 0-9}, {@code .} and {@code _}, starting with a letter,
+ *                    case-insensitive
  * @param password    8-64 characters with an uppercase letter, a lowercase letter, a digit and a special character;
  *                    never trimmed
  * @param email       case-insensitive

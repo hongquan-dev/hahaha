@@ -22,37 +22,47 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * Unit tests of {@link AuthService#login} and {@link AuthService#currentUser}, with mocked collaborators. The encoder
- * is a mock so the tests can check that BCrypt runs even when no account matches.
+ * is a mock so the tests can check that BCrypt runs even when no account matches; the throttle is a mock so the tests
+ * can check which identity a failure is counted against.
  */
 class AuthServiceLoginTest {
 
     private static final String DUMMY_HASH = "$2a$10$dummy";
+    // Throttle keys the mocked LoginThrottleService gives for the account and for an identifier matching no account
+    private static final String ACCOUNT_KEY = "account-key";
+    private static final String TYPED_KEY = "typed-key";
 
     private final UserRepository userRepository = mock(UserRepository.class);
     private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
     private final SessionService sessionService = mock(SessionService.class);
     private final TokenService tokenService = mock(TokenService.class);
+    private final LoginThrottleService loginThrottle = mock(LoginThrottleService.class);
     private AuthService authService;
     private User user;
 
     @BeforeEach
     void setUp() {
         when(passwordEncoder.encode(anyString())).thenReturn(DUMMY_HASH);
-        authService = new AuthService(userRepository, passwordEncoder, sessionService, tokenService);
+        authService = new AuthService(userRepository, passwordEncoder, sessionService, tokenService, loginThrottle);
         user = new User(17939477151001L, "quan", "$2a$10$real", "quan@gmail.com", "+84912345678", "CUSTOMER");
+        when(loginThrottle.keyFor(eq(user.getId()), anyString())).thenReturn(ACCOUNT_KEY);
+        when(loginThrottle.keyFor(isNull(), anyString())).thenReturn(TYPED_KEY);
         when(passwordEncoder.matches("Abc@12345", "$2a$10$real")).thenReturn(true);
         when(sessionService.start(any(), any(), any()))
                 .thenReturn(new IssuedTokens("access", "refresh", Instant.now(), Instant.now()));
         when(userRepository.findByUsername(anyString())).thenReturn(Optional.empty());
         when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
-        when(userRepository.findFirstByPhoneNumber(anyString())).thenReturn(Optional.empty());
+        when(userRepository.findByPhoneNumber(anyString())).thenReturn(Optional.empty());
     }
 
     @Test
@@ -67,7 +77,7 @@ class AuthServiceLoginTest {
 
     @Test
     void phoneIsLookedUpNormalized() {
-        when(userRepository.findFirstByPhoneNumber("+84912345678")).thenReturn(Optional.of(user));
+        when(userRepository.findByPhoneNumber("+84912345678")).thenReturn(Optional.of(user));
 
         assertThat(authService.login(new LoginRequest("0912.345.678", "Abc@12345"), null, "ip").user().id())
                 .isEqualTo(user.getId());
@@ -88,6 +98,14 @@ class AuthServiceLoginTest {
 
         assertThat(authService.login(new LoginRequest(" QUAN ", "Abc@12345"), null, "ip").user().id())
                 .isEqualTo(user.getId());
+    }
+
+    @Test
+    void unicodeSpacesPastedAroundTheIdentifierAreIgnored() {
+        when(userRepository.findByEmail("quan@gmail.com")).thenReturn(Optional.of(user));
+
+        assertThat(authService.login(new LoginRequest(" Quan@Gmail.com ", "Abc@12345"), null, "ip")
+                .user().id()).isEqualTo(user.getId());
     }
 
     @Test
@@ -116,6 +134,48 @@ class AuthServiceLoginTest {
         assertError(() -> authService.login(new LoginRequest("quan", "Abc@12345"), null, "ip"),
                 ApiStatus.FORBIDDEN, "ACCOUNT_DISABLED");
         verify(sessionService, never()).start(any(), any(), any());
+    }
+
+    @Test
+    void lockedIdentityGets429BeforeThePasswordIsChecked() {
+        when(userRepository.findByUsername("quan")).thenReturn(Optional.of(user));
+        doThrow(new BusinessException(ApiStatus.TOO_MANY_REQUESTS, "TOO_MANY_LOGIN_ATTEMPTS", "locked"))
+                .when(loginThrottle).checkNotLocked(ACCOUNT_KEY);
+
+        assertError(() -> authService.login(new LoginRequest("quan", "Abc@12345"), null, "ip"),
+                ApiStatus.TOO_MANY_REQUESTS, "TOO_MANY_LOGIN_ATTEMPTS");
+        verify(passwordEncoder, never()).matches(anyString(), anyString());
+        verify(sessionService, never()).start(any(), any(), any());
+    }
+
+    @Test
+    void wrongPasswordIsCountedAgainstTheAccount() {
+        when(userRepository.findByUsername("quan")).thenReturn(Optional.of(user));
+
+        assertError(() -> authService.login(new LoginRequest("quan", "Wrong@123"), null, "ip"),
+                ApiStatus.UNAUTHORIZED, "INVALID_CREDENTIALS");
+        verify(loginThrottle).recordFailure(ACCOUNT_KEY);
+        verify(loginThrottle, never()).reset(any());
+    }
+
+    @Test
+    void unknownAccountIsCountedAgainstTheTypedIdentifier() {
+        assertError(() -> authService.login(new LoginRequest("nobody", "Abc@12345"), null, "ip"),
+                ApiStatus.UNAUTHORIZED, "INVALID_CREDENTIALS");
+        verify(loginThrottle).keyFor(null, "nobody");
+        verify(loginThrottle).recordFailure(TYPED_KEY);
+    }
+
+    @Test
+    void rightPasswordClearsTheFailuresEvenOfADisabledAccount() {
+        when(userRepository.findByUsername("quan")).thenReturn(Optional.of(user));
+        authService.login(new LoginRequest("quan", "Abc@12345"), null, "ip");
+        user.setActive(false);
+        assertError(() -> authService.login(new LoginRequest("quan", "Abc@12345"), null, "ip"),
+                ApiStatus.FORBIDDEN, "ACCOUNT_DISABLED");
+
+        verify(loginThrottle, times(2)).reset(ACCOUNT_KEY);
+        verify(loginThrottle, never()).recordFailure(any());
     }
 
     @Test

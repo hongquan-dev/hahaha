@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "fd-order-service",
-    "description": "API test của order service: lấy user đang đăng nhập từ auth-service qua HTTP và qua gRPC. Gọi qua API Gateway (baseUrl, 8080), gateway kiểm tra cookie access_token rồi gắn X-User-Id. Trước khi chạy: đặt biến identifier, password (một tài khoản đã đăng ký), bật auth-service (8081 + 9081), order-service (8083), gateway (8080). Chạy cả collection theo thứ tự; 3 request cuối gọi thẳng order (orderDirectUrl) để thấy order tự từ chối khi bị gọi bỏ qua gateway.",
+    "description": "API test của order service: lấy user đang đăng nhập từ auth-service qua HTTP và qua gRPC. Gọi qua API Gateway (baseUrl, 8090), gateway kiểm tra cookie access_token rồi gắn X-User-Id. Trước khi chạy: đặt biến identifier, password (một tài khoản đã đăng ký), bật auth-service (8081 + 9081), order-service (8083), gateway (8090). Chạy cả collection theo thứ tự; 3 request cuối gọi thẳng order (orderDirectUrl) để thấy order tự từ chối khi bị gọi bỏ qua gateway.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -341,7 +341,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:8080"
+      "value": "http://localhost:8090"
     },
     {
       "key": "orderDirectUrl",

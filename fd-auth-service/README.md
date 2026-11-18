@@ -253,19 +253,25 @@ Logout     → thu hồi mọi token của family F
 
 1. **Schema**: đủ 4 field kiểu string, không có field lạ.
 2. **Chuẩn hoá** (`RegisterRequest.normalized()` → `IdentifierNormalizer`):
-   - `username`, `email`: cắt khoảng trắng, chữ thường. `" Quan@Gmail.com "` → `"quan@gmail.com"`.
+   - `username`, `email`: cắt khoảng trắng, chữ thường. `" Quan@Gmail.com "` → `"quan@gmail.com"`. Khoảng trắng gồm cả
+     loại Unicode như U+00A0 (dính vào khi copy-paste) mà `trim()` / `strip()` của Java giữ lại.
    - `phoneNumber`: bỏ dấu cách, `.`, `-`, `()`, đổi `0xxx` / `84xxx` thành `+84xxx`. `"0912.345.678"` → `"+84912345678"`.
    - `password`: **không bao giờ** bị cắt hay sửa.
 3. **Validator** (`validateRegister`), gom mọi lỗi rồi trả một lần → 400 `INVALID_REGISTER_INFO`:
-   - `username`: 3–30 ký tự `a-z 0-9 . _`.
+   - `username`: 3–30 ký tự `a-z 0-9 . _`, **bắt đầu bằng chữ cái** (để không trùng dạng với SĐT khi đăng nhập).
    - `password`: 8–64 ký tự, tối đa 72 byte UTF-8 (BCrypt bỏ qua phần sau byte 72), có chữ hoa, chữ thường, chữ số và
      ký tự đặc biệt.
-   - `email`: đúng định dạng, tối đa 254 ký tự.
+   - `email`: đúng định dạng, tối đa 254 ký tự; dấu chấm chỉ nằm giữa các ký tự (không `.quan@`, `quan..nguyen@`), tên
+     miền không có `-` ở đầu/cuối nhãn.
    - `phoneNumber`: số di động Việt Nam đầu `03 05 07 08 09`.
 4. **Service** (`AuthService.register`):
    - Trùng username / email / SĐT → 409 `USER_ALREADY_EXISTS`, `errors` liệt kê từng field bị trùng.
-   - Băm mật khẩu bằng BCrypt (cost 10), role luôn là `CUSTOMER`, ID sinh bằng `IdUtils.generate(EntityType.USER)`.
-   - Hai request cùng lúc vượt qua bước kiểm tra trùng thì ràng buộc unique của DB chặn lại, vẫn trả 409.
+   - Băm mật khẩu bằng BCrypt (cost 10) **trước** khi chạm vào DB, và hàm không mở transaction riêng: BCrypt (~100 ms)
+     không giữ kết nối nào của pool (login cũng vậy, nhờ `spring.jpa.open-in-view=false`). Role luôn là `CUSTOMER`, ID
+     sinh bằng `IdUtils.generate(EntityType.USER)`.
+   - Hai request cùng lúc vượt qua bước kiểm tra trùng thì ràng buộc unique của DB chặn lại, vẫn trả 409 kèm lỗi đúng
+     field (lấy từ tên ràng buộc, vd. `uk_users_username` → `username`). Lỗi DB khác (NOT NULL, độ dài cột...) không bị
+     đổi thành 409 mà để lộ ra thành 500 và được ghi log.
 5. Trả 201 + user. **Không** set cookie: client gọi login sau đó.
 
 ### 5.2. `POST /auth/login`
@@ -284,19 +290,27 @@ Logout     → thu hồi mọi token của family F
    | Người dùng nhập | Hiểu là | Tìm theo |
    |---|---|---|
    | Có `@` | Email | `email` đã chuẩn hoá |
-   | Chuẩn hoá ra đúng dạng SĐT `+84...` | SĐT | `phone_number`; **không thấy thì tìm tiếp theo username** (username được phép toàn chữ số, ví dụ `0912345678`) |
+   | Chuẩn hoá ra đúng dạng SĐT `+84...` | SĐT | `phone_number`; **không thấy thì tìm tiếp theo username**, cho tài khoản tạo trước khi username bắt buộc bắt đầu bằng chữ cái (ví dụ `0912345678`) |
    | Còn lại | Username | `username` chữ thường |
 
-4. **Kiểm tra mật khẩu**:
+4. **Khoá tạm sau nhiều lần sai** (`LoginThrottleService`), kiểm tra **trước** mật khẩu:
+   - Sai 10 lần trong 15 phút (`auth.login.*`) → khoá 5 phút: mọi lần đăng nhập, **kể cả đúng mật khẩu**, nhận 429
+     `TOO_MANY_LOGIN_ATTEMPTS`.
+   - Đếm theo **tài khoản** khi identifier khớp một tài khoản (gõ username, email hay SĐT đều chung một bộ đếm), ngược
+     lại theo **identifier đã chuẩn hoá**. Hai trường hợp bị khoá y hệt nhau, nên khoá không lộ tài khoản nào tồn tại.
+   - Bảng `login_failures` chỉ lưu SHA-256 của khoá đếm, không bao giờ lưu identifier (có thể là mật khẩu gõ nhầm ô).
+   - Đúng mật khẩu thì xoá bộ đếm. Khoá ngắn có chủ đích: ai cũng có thể cố tình gõ sai để khoá tài khoản người khác.
+     Lớp chặn theo IP nằm ở gateway (filter `RateLimit`).
+5. **Kiểm tra mật khẩu**:
    - **Không có user hoặc sai mật khẩu → cùng 401 `INVALID_CREDENTIALS`**, cùng câu thông báo, không có `errors`:
-     không lộ tài khoản nào tồn tại.
+     không lộ tài khoản nào tồn tại. Lần sai được đếm cho bước 4.
    - **Khi không có user vẫn chạy BCrypt với một hash giả** (tạo lúc khởi động, cùng cost), để thời gian phản hồi
      bằng với trường hợp sai mật khẩu (~70–100 ms). Không làm vậy thì kẻ dò có thể đoán tài khoản tồn tại qua tốc độ.
    - Đúng mật khẩu nhưng `active=false` → 403 `ACCOUNT_DISABLED`. Chỉ báo **sau** khi mật khẩu đúng, nên kẻ dò không
      biết được gì.
-5. **Tạo phiên** (`SessionService.start`): lưu một dòng `refresh_tokens` (family mới, `family_id = id`, idle 7 ngày,
+6. **Tạo phiên** (`SessionService.start`): lưu một dòng `refresh_tokens` (family mới, `family_id = id`, idle 7 ngày,
    tuyệt đối 30 ngày, `user_agent`, `ip`), ký access token.
-6. Trả 200 + user trong body + 2 header `Set-Cookie`. **Token không bao giờ có trong body.**
+7. Trả 200 + user trong body + 2 header `Set-Cookie`. **Token không bao giờ có trong body.**
 
 ### 5.3. `GET /auth/me`
 
@@ -358,10 +372,11 @@ băm cookie (SHA-256) → tìm dòng refresh_tokens, KHOÁ DÒNG (SELECT ... FOR
 | CSRF (trang khác gửi request kèm cookie) | `SameSite` + `OriginCheckFilter` (xem dưới) |
 | Giả mạo / sửa access token | Chữ ký RS256; chỉ auth-service có private key; thuật toán cố định RS256 |
 | Lộ refresh token | Rotation + phát hiện reuse → thu hồi cả phiên; DB chỉ lưu SHA-256 nên lộ DB cũng không dùng được token |
-| Dò tài khoản tồn tại | Một mã lỗi chung `INVALID_CREDENTIALS` + thời gian phản hồi như nhau (BCrypt với hash giả) |
+| Dò tài khoản tồn tại | Một mã lỗi chung `INVALID_CREDENTIALS` + thời gian phản hồi như nhau (BCrypt với hash giả); khoá tạm áp dụng y hệt cho tài khoản có và không có |
+| Dò mật khẩu | Gateway giới hạn 30 request/phút mỗi IP cho login và register (429 `TOO_MANY_REQUESTS`); auth khoá tạm 5 phút sau 10 lần sai trong 15 phút (429 `TOO_MANY_LOGIN_ATTEMPTS`) |
 | Lộ bảng `users` | Mật khẩu băm BCrypt cost 10 |
 | Mật khẩu bị BCrypt cắt ngầm | Giới hạn 72 byte UTF-8 ở cả register và login |
-| Lộ thông tin qua log | Không bao giờ log mật khẩu, access token hay refresh token (đã kiểm tra trên log của cả lượt test) |
+| Lộ thông tin qua log | Không bao giờ log mật khẩu, access token hay refresh token (đã kiểm tra trên log của cả lượt test); email và SĐT chỉ log dạng che bớt (`LogMasker`), vd. `q***@gmail.com`, `+8491****678`; identifier của lần đăng nhập chỉ giữ 2 ký tự đầu (`qu***`), vì người dùng có thể gõ nhầm mật khẩu vào ô tên đăng nhập |
 | Cấu hình sai lúc deploy | Kiểm tra lúc khởi động: thiếu hoặc hỏng thì không khởi động |
 
 **`OriginCheckFilter`** (`web/OriginCheckFilter`, chạy trước mọi filter khác, áp dụng mọi path):
@@ -388,7 +403,7 @@ Trình duyệt **luôn** gửi `Origin` với các method này, nên request kh�
 | `username` | Unique, chữ thường |
 | `password` | BCrypt hash |
 | `email` | Unique, chữ thường |
-| `phone_number` | Dạng `+84...`; không có ràng buộc unique, trùng do service chặn |
+| `phone_number` | Unique, dạng `+84...` (ràng buộc thêm ở `V2`) |
 | `role` | `CUSTOMER` khi đăng ký |
 | `active` | `false` = bị khoá |
 | `created_at`, `updated_at` | Tự đặt bởi JPA callback |
@@ -410,6 +425,10 @@ Trình duyệt **luôn** gửi `Origin` với các method này, nên request kh�
 | `created_at` | Tự đặt |
 
 - Index: unique `token_hash`; `family_id` (thu hồi cả phiên); `user_id` (cho `logout-all` sau này).
+- **Dọn dẹp** (`DataCleanupService`, mặc định mỗi giờ): xoá **cả phiên** khi phiên đã chết quá 7 ngày. Mỗi token hết
+  dùng được tại `LEAST(family_expires_at, COALESCE(revoked_at, expires_at))`; phiên chết khi token cuối cùng hết dùng
+  được. Phiên còn sống luôn có một token dùng được, nên các token đã bị thay của nó (cần để phát hiện token bị đánh
+  cắp) không bao giờ bị xoá. Cùng job xoá dòng `login_failures` đã hết khoá và hết cửa sổ đếm.
 - Thời gian dùng `Instant` (`timestamp with time zone`), không phụ thuộc múi giờ của server hay DB.
 - **Vì sao SHA-256 mà không phải BCrypt như mật khẩu:** token là 256 bit ngẫu nhiên nên không thể dò; và SHA-256 luôn
   cho cùng kết quả nên tìm được bằng index (BCrypt có salt ngẫu nhiên, không tìm được).
@@ -422,7 +441,9 @@ Schema do Flyway quản lý, **không** để Hibernate tự sửa:
   `V1__create_users_and_refresh_tokens.sql`. Lúc khởi động Flyway chạy các file chưa chạy theo thứ tự version và ghi
   lại vào bảng `flyway_schema_history`.
 - Hibernate chạy với `ddl-auto=validate`: chỉ kiểm tra bảng/cột khớp entity, lệch thì service **từ chối khởi động**.
-- **Đổi schema** (thêm cột, thêm bảng, index...): tạo file mới với version kế tiếp (`V2__add_xxx.sql`), sửa entity cho
+- Hiện có: `V1` tạo `users` và `refresh_tokens`; `V2` thêm ràng buộc unique cho `users.phone_number`; `V3` tạo
+  `login_failures` (khoá đếm là SHA-256 64 ký tự, `failure_count`, `window_started_at`, `locked_until`).
+- **Đổi schema** (thêm cột, thêm bảng, index...): tạo file mới với version kế tiếp (`V4__add_xxx.sql`), sửa entity cho
   khớp. **Không sửa file đã chạy**: Flyway so checksum và từ chối khởi động nếu file cũ bị đổi.
 
 **DB cũ do Hibernate `ddl-auto=update` tạo** (có bảng nhưng chưa có `flyway_schema_history`): Flyway báo
@@ -455,6 +476,12 @@ Mọi property `auth.*` được bind vào `config/properties/AuthProperties` l�
 | `auth.refresh.absolute-ttl` | `30d` | Hạn tối đa của một phiên; phải ≥ `idle-ttl` |
 | `auth.refresh.reuse-grace` | `10s` | Grace window cho 2 tab refresh cùng lúc (409) |
 | `auth.cookie.secure` | `true` | Thuộc tính `Secure` của cookie |
+| `auth.login.max-failures` | `10` | Số lần đăng nhập sai trong `failure-window` thì khoá tạm (`LoginThrottleProperties`) |
+| `auth.login.failure-window` | `15m` | Khoảng thời gian đếm số lần sai, tính từ lần sai đầu |
+| `auth.login.lock-duration` | `5m` | Thời gian khoá; trong lúc khoá, đúng mật khẩu cũng nhận 429 |
+| `auth.cleanup.cron` | `0 0 * * * *` | Lịch chạy job dọn (cron 6 trường, có giây; mặc định mỗi giờ); `-` để tắt |
+| `auth.cleanup.retention` | `7d` | Giữ phiên đã chết bao lâu trước khi xoá (`CleanupProperties`) |
+| `auth.cleanup.batch-size` | `500` | Số phiên / dòng xoá mỗi câu lệnh |
 | `spring.grpc.server.port` | `9090` (đặt `9081`) | Port của gRPC server, chạy riêng cạnh Tomcat |
 | `spring.grpc.server.reflection.enabled` | `true` | Cho grpcurl/Postman tự đọc danh sách service; production nên tắt |
 | `auth.allowed-origins` | (bắt buộc) | Whitelist `Origin`, cách nhau dấu phẩy, dạng `scheme://host[:port]`, ví dụ `http://localhost:5173` |
@@ -481,7 +508,8 @@ src/main/java/com/fooddelivery/auth/
 │   │   ├── User.java
 │   │   └── RefreshToken.java
 │   └── util/
-│       └── IdentifierNormalizer  chuẩn hoá username/email/SĐT, dùng chung cho register và login
+│       ├── IdentifierNormalizer  chuẩn hoá username/email/SĐT, dùng chung cho register và login
+│       └── LogMasker             che bớt email/SĐT trước khi ghi log
 ├── config/
 │   ├── common/ClockConfig        bean Clock (UTC); test thay bằng đồng hồ cố định
 │   ├── properties/AuthProperties bind + kiểm tra auth.*
@@ -545,7 +573,7 @@ Frontend mẫu (React + TS + Vite): `Food Delivery/hehehe`. Các điểm bắt b
 
 1. **Gửi kèm cookie:** axios `withCredentials: true` (fetch: `credentials: 'include'`).
 2. **Không lưu token** ở đâu cả; trạng thái đăng nhập lấy từ `GET /auth/me` khi mở app, và từ body của login.
-3. **Dev dùng Vite proxy** `/api/**` → gateway `http://localhost:8080` (bỏ tiền tố `/api`) → auth-service: cùng
+3. **Dev dùng Vite proxy** `/api/**` → gateway `http://localhost:8090` (bỏ tiền tố `/api`) → auth-service: cùng
    origin nên không cần CORS, và `Origin` là `http://localhost:5173` (đã nằm trong `auth.allowed-origins`; gateway
    chuyển nguyên header này).
 4. **Interceptor refresh:** mọi 401 (trừ `/auth/login`, `/auth/refresh`, `/auth/logout`) thì refresh **một lần** rồi
@@ -567,10 +595,15 @@ Frontend mẫu (React + TS + Vite): `Food Delivery/hehehe`. Các điểm bắt b
 |---|---:|---|
 | `TokenServiceTest` | 15 | Ký → kiểm tra OK; claim đúng; còn trong / quá clock skew; sửa payload; ký bằng khoá khác; token giả đã quá hạn vẫn `INVALID`; `alg: none`; HS256 ký bằng public key; sai `iss`, `kid`; chuỗi rác/rỗng/`null`; refresh token 43 ký tự, 1000 lần không trùng; vector SHA-256 chuẩn |
 | `SessionServiceTest` | 10 | `family_id = id`; cắt `user_agent`; rotation giữ family và hạn tuyệt đối; token thiếu/lạ; reuse trong grace → 409 không thu hồi; reuse sau grace → thu hồi family; token bị logout → `INVALID` (không phải `REUSED`); hết hạn idle/tuyệt đối; user bị khoá; logout |
-| `AuthServiceLoginTest` | 9 | Nhận dạng email/SĐT/username; SĐT không thấy thì tìm theo username; không có user vẫn chạy BCrypt với hash giả; sai mật khẩu; khoá chỉ báo khi đúng mật khẩu; `currentUser` |
+| `AuthServiceLoginTest` | 14 | Nhận dạng email/SĐT/username; bỏ khoảng trắng Unicode quanh identifier; SĐT không thấy thì tìm theo username; không có user vẫn chạy BCrypt với hash giả; sai mật khẩu; khoá chỉ báo khi đúng mật khẩu; bị khoá tạm → 429 trước khi so mật khẩu; lần sai đếm theo tài khoản hoặc identifier; đúng mật khẩu xoá bộ đếm; `currentUser` |
+| `LoginThrottleServiceTest` | 11 | Dưới ngưỡng không khoá; đủ ngưỡng → 429; hết thời gian khoá thì mở; đếm lại sau khoá và sau cửa sổ; `reset`; khoá đếm chung cho mọi identifier của một tài khoản, chuẩn hoá identifier lạ, là SHA-256 không chứa identifier |
+| `LoginThrottlePropertiesTest` | 10 | Giá trị mặc định; ghi đè; số lần sai < 1, thời gian ≤ 0 hoặc thiếu → không khởi động |
+| `DataCleanupServiceTest` | 4 | Xoá phiên với mốc `now - retention`, `login_failures` với mốc `now` và `now - failure-window`; lặp lô tới khi hết, cộng dồn số dòng |
+| `CleanupPropertiesTest` | 7 | Giá trị mặc định; ghi đè; `retention` ≤ 0 hoặc thiếu, `batch-size` < 1 → không khởi động |
 | `AuthCookiesTest` | 7 | Đủ thuộc tính cookie; `Max-Age` theo mốc sớm hơn; bản xoá cùng tên và `Path`; tắt `Secure` |
 | `OriginCheckFilterTest` | 7 | GET; không có `Origin`; `Origin` hợp lệ, viết hoa; POST/PUT/PATCH/DELETE từ origin lạ; khác port; `Origin: null` |
-| `IdentifierNormalizerTest` | 3 | Các dạng SĐT; đầu số hợp lệ; `null` |
+| `IdentifierNormalizerTest` | 9 | Các dạng SĐT; đầu số hợp lệ; bỏ khoảng trắng mọi loại (U+00A0, U+202F...) ở hai đầu; `null` |
+| `LogMaskerTest` | 19 | Email giữ ký tự đầu + tên miền; SĐT giữ đầu số + 3 số cuối; identifier đăng nhập: SĐT che như SĐT, còn lại chỉ giữ 2 ký tự đầu, mật khẩu gõ nhầm ô không lọt vào log; giá trị quá ngắn che hết; `null` |
 | `InternalUserValidatorTest` | 3 | ID user hợp lệ; `abc`, quá ngắn/dài, số âm, rỗng; ID của order; chữ số loại không tồn tại |
 | `UserGrpcServiceTest` | 5 | Qua stub thật trên gRPC server in-process: đủ field như HTTP; không có SĐT thì field không được đặt; không có user → `NOT_FOUND` + `USER_NOT_FOUND`; ID sai → `INVALID_ARGUMENT` mà không truy vấn DB; lỗi lạ → `INTERNAL` không lộ chi tiết |
 | `UserQueryServiceTest` | 3 | Trả user không kèm hash/email; user bị khoá trả `active=false`; không có → 404 `USER_NOT_FOUND` |
@@ -613,6 +646,8 @@ dùng lại refresh token cũ → thông báo "lý do bảo mật"; mất cookie
 | 404 | `USER_NOT_FOUND` | internal users | Không có user với ID này |
 | 409 | `USER_ALREADY_EXISTS` | register | Trùng username/email/SĐT, kèm `errors` |
 | 409 | `REFRESH_CONFLICT` | refresh | Tab khác vừa refresh ≤ 10 giây trước; cookie **không** bị xoá |
+| 429 | `TOO_MANY_LOGIN_ATTEMPTS` | login | Tài khoản / identifier đang bị khoá tạm sau nhiều lần sai, kể cả khi đúng mật khẩu |
+| 429 | `TOO_MANY_REQUESTS` | login, register (gateway) | Một IP gửi quá nhiều request tới cùng API; kèm `Retry-After` (giây) |
 
 ---
 
@@ -624,14 +659,15 @@ dùng lại refresh token cũ → thông báo "lý do bảo mật"; mất cookie
 - Access token không thu hồi được trước hạn (tối đa 15 phút sau logout, nếu ai đó đã chép được token).
 - IP lưu là IP client do gateway ghi vào `X-Forwarded-For` (`server.forward-headers-strategy=native`). Header này
   chỉ được tin khi request đến từ địa chỉ nội bộ, nên ai gọi thẳng vào port 8081 từ mạng nội bộ vẫn giả được IP.
-- Bảng `refresh_tokens` tăng thêm khoảng 1 dòng mỗi lần refresh, chưa có job dọn.
-- Chưa có giới hạn số lần đăng nhập sai.
+- Giới hạn theo IP của gateway đếm trong RAM: mỗi instance gateway đếm riêng, restart thì mất.
+- Khoá tạm theo tài khoản cho phép người khác cố tình khoá tài khoản của bạn trong 5 phút.
 
 **Giai đoạn 2:**
 
-- [ ] Giới hạn đăng nhập sai / khoá tạm
+- [x] Giới hạn đăng nhập sai / khoá tạm (gateway `RateLimit` + `LoginThrottleService`)
 - [ ] `POST /auth/logout-all` và danh sách thiết bị đang đăng nhập (đã có index `user_id`, `user_agent`, `ip`)
-- [ ] Job dọn `refresh_tokens` hết hạn
+- [x] Job dọn `refresh_tokens` và `login_failures` (`DataCleanupService`, mỗi giờ, giữ phiên đã chết 7 ngày)
+- [ ] Giới hạn số phiên mỗi user (làm cùng danh sách thiết bị)
 - [x] Endpoint JWKS `/auth/.well-known/jwks.json`
 - [x] Kiểm tra JWT ở gateway (`JwtAuth` của fd-gateway-service, dùng JWKS)
 - [x] Xử lý `X-Forwarded-For` khi có gateway
