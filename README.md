@@ -12,6 +12,7 @@ Dùng **Maven Wrapper** `./mvnw` (Windows: `mvnw.cmd`) ở thư mục gốc, kh�
 ```bash
 ./mvnw clean install                              # build và test mọi module
 ./mvnw spring-boot:run -pl fd-auth-service        # chạy một service
+java -jar fd-auth-service/target/fd-auth-service-1.0.0.jar   # chạy jar đã build (đủ thư viện bên trong)
 ```
 
 Thư viện dùng chung `food-delivery-libs` (repo riêng) phải được `mvn install` vào `~/.m2` trước.
@@ -34,9 +35,8 @@ Thư viện dùng chung `food-delivery-libs` (repo riêng) phải được `mvn 
    ./mvnw spring-boot:run -pl fd-gateway-service    # 8090
    ```
 
-3. Thử bằng Postman: import `postman/fd-auth-service.postman_collection.json` (đăng ký, đăng nhập...) và
-   `postman/fd-order-service.postman_collection.json` (đặt biến `identifier`, `password` rồi chạy cả collection).
-   gRPC thử bằng `grpcurl`, xem mục gRPC trong `fd-auth-service/README.md`.
+3. Thử bằng Postman: mỗi API có một file cURL trong `postman/<service>/`, copy toàn bộ rồi dán vào thanh URL của
+   Postman (xem `postman/README.md`). gRPC thử bằng `grpcurl`, xem mục gRPC trong `fd-auth-service/README.md`.
 
 ```
 Client ──> gateway :8090 ── /auth/**  (login, register: RateLimit theo IP) ──> auth :8081

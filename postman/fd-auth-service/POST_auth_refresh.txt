@@ -1,0 +1,2 @@
+curl --location --request POST 'http://localhost:8090/auth/refresh' \
+--header 'Cookie: refresh_token=PASTE_REFRESH_TOKEN'

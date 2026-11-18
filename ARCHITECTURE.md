@@ -39,7 +39,7 @@ food-delivery-libs (~/.m2)
 
 | Module | Port | Vai trò | Database |
 |---|---:|---|---|
-| `common-lib` | - | Không có code Java: gom dependency chung cho service Spring MVC (4 lib của `food-delivery-libs`, JPA, PostgreSQL, Flyway, Log4j2, `spring-security-crypto`, `nimbus-jose-jwt`) và `log4j2-spring.xml` chung | - |
+| `common-lib` | - | Không có code Java: gom dependency chung cho service Spring MVC (4 lib của `food-delivery-libs`, JPA, PostgreSQL, Flyway, Log4j2) và `log4j2-spring.xml` chung | - |
 | `fd-grpc-api` | - | Thư viện (jar), không chạy như service. Hợp đồng gRPC giữa service: file `.proto` (sinh code bằng `protobuf-maven-plugin`), `GrpcMetadataKeys`; và phần hỗ trợ gRPC dùng chung, tự đăng ký vào mọi service có gRPC server/client (`GrpcSupportAutoConfiguration`) | - |
 | `fd-gateway-service` | 8090 | Cổng duy nhất cho client: route `/auth/**`, `/order/**`; kiểm tra access token (`JwtAuth`) trước order | - |
 | `fd-auth-service` | 8081, gRPC 9081 | Tài khoản, đăng nhập, phiên (refresh token), ký access token RS256, JWKS; cung cấp user cho service khác qua HTTP `/internal/**` và gRPC | `FD_auth_db` |
@@ -54,8 +54,19 @@ Quy tắc phụ thuộc (không được phá):
   `fd-grpc-api`.
 - Service Spring MVC kéo thư viện qua `common-lib`, không khai báo từng lib. Gateway là WebFlux nên chỉ dùng
   `common-dto-lib` (cùng format response), không dùng `common-lib`.
-- Mọi starter kéo Logback (vd. gRPC) phải exclude `spring-boot-starter-logging`: dự án dùng Log4j2.
-- Version khai báo ở `pom.xml` gốc (`dependencyManagement`, BOM Spring Boot / Spring Cloud / gRPC).
+- `common-lib` chỉ chứa thứ **mọi** service nghiệp vụ cần; thư viện của riêng một service khai báo ở pom của service
+  đó (vd. `spring-security-crypto`, `nimbus-jose-jwt` ở auth). `common-lib` có JPA: service dùng nó phải có database
+  PostgreSQL riêng; service không có database thì không dùng `common-lib` (hoặc tách phần JPA ra module riêng).
+- Mỗi service (không phải `common-lib`, `fd-grpc-api`) khai báo `spring-boot-maven-plugin` để `package` ra jar chạy
+  được bằng `java -jar`.
+- Comment trong mọi `pom.xml` chỉ một dòng.
+- Mọi starter kéo Logback (vd. gRPC) phải exclude `spring-boot-starter-logging`: dự án dùng Log4j2. Hai starter
+  gRPC đã có sẵn exclusion trong `dependencyManagement` của `pom.xml` gốc, service chỉ khai báo `groupId` +
+  `artifactId` (tự ghi `<exclusions>` sẽ thay thế, không cộng thêm).
+- Version khai báo ở `pom.xml` gốc (`dependencyManagement`, BOM Spring Boot / Spring Cloud / gRPC). Biến
+  `spring-boot.version` phải bằng version của `spring-boot-starter-parent`.
+- Starter gRPC **không** nằm trong `common-lib`: starter server mở cổng ở mọi service có nó, nên chỉ service có API
+  gRPC mới khai báo.
 
 ---
 
@@ -270,11 +281,11 @@ không kết nối được / quá timeout -> 503 `AUTH_UNAVAILABLE`; lỗi khá
 
 | Việc | Sửa ở | Lưu ý |
 |---|---|---|
-| Thêm API vào một service | `api-routes.xml`, `schemas/*.json`, `validation/*Validator`, controller, service | Theo "Luồng xử lý một API" trong `CLAUDE.md`; thêm vào Postman collection |
+| Thêm API vào một service | `api-routes.xml`, `schemas/*.json`, `validation/*Validator`, controller, service | Theo "Luồng xử lý một API" trong `CLAUDE.md`; thêm file cURL `postman/<module>/<METHOD>_<path>.txt` (`/` thành `_`) |
 | Cho client gọi API qua gateway | `routes[*]` trong `application.properties` của gateway | Cần đăng nhập thì thêm `JwtAuth`; dễ bị spam (login, đăng ký, gửi OTP...) thì thêm `RateLimit` |
 | Đổi bảng / thêm cột | Migration mới `V<n>__...sql` + entity cùng commit | Không sửa migration cũ |
 | Gọi service khác | Client trong `client/` của service gọi (HTTP `RestClient` hoặc stub gRPC) | Ánh xạ lỗi thành `BusinessException`, có timeout/deadline |
-| Thêm API gRPC | `.proto` trong `fd-grpc-api/src/main/proto/<service>/v1/` + `*GrpcService` (server) + stub và `*GrpcClient` (client) | Service thêm dependency `fd-grpc-api` và starter `spring-boot-starter-grpc-server` / `-client` (exclude Logback); lỗi, log, caller header tự có |
+| Thêm API gRPC | `.proto` trong `fd-grpc-api/src/main/proto/<service>/v1/` + `*GrpcService` (server) + stub và `*GrpcClient` (client) | Service thêm dependency `fd-grpc-api` và starter `spring-boot-starter-grpc-server` / `-client`, chỉ `groupId` + `artifactId` (version, exclusion Logback lấy từ `pom.xml` gốc); lỗi, log, caller header tự có |
 | Đổi xử lý lỗi / log / header chung của gRPC | `fd-grpc-api`, package `com.fooddelivery.grpc.support` | Áp dụng cho mọi service có gRPC |
 | Đổi nội dung access token | `TokenService` (auth) **và** `AccessTokenVerifier` (gateway) | Hai bên cùng thứ tự kiểm tra |
 | Thêm service mới | Module `fd-xxx-service` + `<module>` trong `pom.xml` gốc + route ở gateway | Dùng `common-lib`; cập nhật mục 2, 3 của file này và bảng port trong README |
@@ -286,6 +297,6 @@ không kết nối được / quá timeout -> 503 `AUTH_UNAVAILABLE`; lỗi khá
 - Unit test mỗi service: `./mvnw test -pl <module>`; cả repo: `./mvnw clean install`. Quy tắc và mức độ test trong
   `CLAUDE.md`. Không dùng tài nguyên thật: Mockito, `HttpServer` cục bộ, gRPC in-process, `Clock` cố định.
 - Test dùng chung trong gateway: `AccessTokenVerifierTestSupport` (tạo khoá và token mẫu).
-- Kiểm thử ghép nối: Postman collection trong `postman/` (`fd-auth-service`, `fd-order-service`), chạy bằng newman.
+- Kiểm thử ghép nối: mỗi API HTTP một file cURL trong `postman/<module>/` (cách dùng: `postman/README.md`).
 - Checklist nghiệm thu theo từng phần: `docs/auth-login-checklist.md`, `docs/gateway-grpc-checklist.md`.
 - `ArchitectureDocTest` (common-lib): mọi module và mọi class trong `src/main/java` phải được nhắc trong file này.

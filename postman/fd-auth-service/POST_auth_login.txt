@@ -1,0 +1,6 @@
+curl --location 'http://localhost:8090/auth/login' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "identifier": "quan.nguyen",
+    "password": "Abc@12345"
+}'

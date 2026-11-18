@@ -1,0 +1,8 @@
+curl --location 'http://localhost:8090/auth/register' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "username": "quan.nguyen",
+    "password": "Abc@12345",
+    "email": "quan.nguyen@example.com",
+    "phoneNumber": "0912345678"
+}'

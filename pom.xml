@@ -32,19 +32,18 @@
 
     <properties>
         <java.version>21</java.version>
+        <!-- Must equal the spring-boot-starter-parent version above; the BOM has no property for its own version -->
+        <spring-boot.version>4.1.2</spring-boot.version>
         <spring-cloud.version>2025.1.4</spring-cloud.version>
-        <!-- Shared by every module that uses them, so auth (signs tokens) and the gateway (verifies them) never run
-             different versions. food-delivery-libs: 1.0.0-SNAPSHOT is the local build (mvn install), 1.0.0 the
-             release on JitPack -->
+        <!-- food-delivery-libs: 1.0.0-SNAPSHOT is the local build (mvn install), 1.0.0 the release on JitPack -->
 <!--        <food-delivery-libs.version>1.0.0</food-delivery-libs.version>-->
         <food-delivery-libs.version>1.0.0-SNAPSHOT</food-delivery-libs.version>
+        <!-- One version for auth (signs tokens) and the gateway (verifies them) -->
         <nimbus-jose-jwt.version>10.10</nimbus-jose-jwt.version>
     </properties>
 
     <dependencies>
-        <!-- JUnit 5 and AssertJ for the unit tests of every module, e.g. TokenServiceTest. Declared here because
-             test-scoped dependencies are not passed on from common-lib; never packaged into a jar. Its Logback starter
-             is excluded: the services log with Log4j2 and both on the classpath fail at the first logger -->
+        <!-- JUnit 5 and AssertJ for every module (test scope is not passed on); Logback excluded for Log4j2 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -67,8 +66,54 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+
+            <!-- Dependency bundle of the Spring MVC services, built by this project -->
+            <dependency>
+                <groupId>com.fooddelivery</groupId>
+                <artifactId>common-lib</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- gRPC starters with Logback excluded; not in common-lib since the server one opens a port -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-grpc-server</artifactId>
+                <version>${spring-boot.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-starter-logging</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-grpc-client</artifactId>
+                <version>${spring-boot.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-starter-logging</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+            <!-- Generated classes of the .proto contracts, built by this project -->
+            <dependency>
+                <groupId>com.fooddelivery</groupId>
+                <artifactId>fd-grpc-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <!-- Release builds of food-delivery-libs; the SNAPSHOT build comes from the local repository -->
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
 
     <build>
         <plugins>

@@ -32,6 +32,22 @@ Mọi API của service đi qua luồng của `common-api-flow-lib`, mỗi lớp
 4. **Controller**: lấy dữ liệu từ `ApiRequest`, gọi service, trả `ResponseHandler.generateResponse(...)`.
 5. **Service**: logic nghiệp vụ và mọi kiểm tra cần DB (trùng, tồn tại, trạng thái), ném `BusinessException` khi vi phạm.
 
+## cURL cho mọi API HTTP
+
+Mỗi API HTTP của backend (kể cả health check và API nội bộ `/internal/**`) có một file cURL để thử nhanh bằng Postman.
+
+- Mỗi service một thư mục `postman/<module>/`. Tên file là **method viết hoa + path như trong `api-routes.xml` /
+  controller, `/` đổi thành `_`** (tên file không được chứa `/`), vd. `POST /auth/login` -> `POST_auth_login.txt`,
+  `GET /internal/users/{userId}` -> `GET_internal_users_{userId}.txt`. Cách dùng và bảng giá trị giả:
+  `postman/README.md`.
+- File chỉ chứa **đúng một lệnh cURL**, không comment hay chữ nào khác: chọn hết, copy, dán vào thanh URL của Postman.
+- URL theo đường client thật: API công khai qua gateway `http://localhost:8090`; API nội bộ và service chưa có route ở
+  gateway gọi thẳng cổng của service.
+- Body, cookie, ID cần dữ liệu thật thì điền giá trị giả dễ nhận ra và có trong bảng của `postman/README.md`, vd.
+  `PASTE_ACCESS_TOKEN`, ID mẫu `17939522301001`.
+- Thêm, sửa (method, path, body, header) hay xoá API thì thêm, sửa hay xoá file cURL tương ứng **trong cùng commit**,
+  và chạy thử lệnh đó với service đang chạy.
+
 ## Thay đổi database: luôn qua migration
 
 Dự án nhiều người cùng làm, nên database của mọi người phải giống nhau chỉ nhờ chạy code mới nhất. Flyway tự áp dụng
@@ -86,7 +102,7 @@ bảo trì và gãy khi refactor dù hành vi không đổi.
 | Exception handler, mapper, config có điều kiện | Mỗi nhánh/ánh xạ một test |
 | Controller | Mỏng: lấy đúng dữ liệu từ `ApiRequest`, gọi đúng service, đúng status; không test lại validator/service |
 | Record/DTO/entity không logic, getter/setter, `*Application`, config chỉ khai báo bean | Không viết test |
-| Ghép nối giữa các service, luồng qua gateway | Postman collection trong `postman/`, chạy bằng newman khi đổi API |
+| Ghép nối giữa các service, luồng qua gateway | File cURL trong `postman/<module>/` (mục "cURL cho mọi API HTTP"), chạy thử khi đổi API |
 
 - **Test hành vi qua API công khai**, không test chi tiết cài đặt: không reflection vào field private, không gọi method
   private, không assert annotation, thứ tự gọi nội bộ hay số lần gọi mock khi điều đó không phải là hành vi được hứa.
@@ -255,8 +271,12 @@ log.info("[VALIDATE] [{}] {} | username={}, email={}, phoneNumber={}", ...);
 ### 5. File cấu hình (`api-routes.xml`, `application.properties`, `pom.xml`, `log4j2-spring.xml`)
 
 - Cùng quy tắc ngôn ngữ và định dạng: tiếng Anh, viết hoa chữ đầu, không chấm câu ở cuối dòng cuối.
+- **Mỗi comment chỉ một dòng** (tối đa ~120 ký tự) trong `pom.xml`, `application.properties` và `api-routes.xml`:
+  giữ ý chính (làm gì, vì sao, mặc định); chi tiết dài (ví dụ, lệnh, giải thích) đưa vào README hoặc Javadoc của class
+  liên quan.
 - `api-routes.xml`: mỗi `<route>` có một comment `<!-- -->` ngay trên, nói API làm gì và schema/validator/service kiểm tra phần nào.
-- `application.properties`: comment `#` trên dòng riêng, trước nhóm property; nói rõ giá trị mặc định khi có.
+- `application.properties`: comment `#` trên dòng riêng, trước property hoặc nhóm property; nói rõ giá trị mặc định khi có.
+- `pom.xml`: comment ngay trên dependency/plugin/property, nói vì sao cần nó.
 - Dòng cấu hình bị comment-out chỉ giữ khi nó là một tuỳ chọn được ghi chú rõ (vd. `#api-flow.use-default-excludes=false`).
 
 ### 6. Định dạng

@@ -45,7 +45,7 @@ Order khởi động được khi auth-service chưa chạy: kênh gRPC chỉ k�
 
 `elapsedMs` là thời gian của riêng lời gọi sang auth-service. Hai API phải trả cùng `user`.
 
-Postman: [`postman/fd-order-service.postman_collection.json`](../postman/fd-order-service.postman_collection.json).
+cURL từng API (copy, dán vào thanh URL của Postman): [`postman/fd-order-service/`](../postman/fd-order-service/).
 
 ---
 

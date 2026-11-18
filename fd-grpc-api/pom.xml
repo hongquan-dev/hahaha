@@ -16,8 +16,7 @@
         side</description>
 
     <dependencies>
-        <!-- Runtime of the generated code: messages (protobuf-java, through grpc-protobuf) and stubs (grpc-stub).
-             Versions come from the Spring Boot BOM, the same as the gRPC starters of the services -->
+        <!-- Runtime of the generated code: messages (grpc-protobuf) and stubs (grpc-stub); versions from the BOM -->
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-protobuf</artifactId>
@@ -27,9 +26,7 @@
             <artifactId>grpc-stub</artifactId>
         </dependency>
 
-        <!-- The gRPC support (package support) and its auto-configuration. Optional: a service using it already has
-             them, through spring-boot-starter-grpc-server/-client (Spring gRPC) and common-lib (BusinessException,
-             Log4j2, auto-configuration), so this module does not force them on anyone -->
+        <!-- Needed by package support; optional, as a gRPC service already has them via its starter and common-lib -->
         <dependency>
             <groupId>org.springframework.grpc</groupId>
             <artifactId>spring-grpc-core</artifactId>
@@ -52,8 +49,7 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Tests: in-process gRPC server and channel; the auto-configuration test also needs the server and client
-             auto-configurations of Spring Boot, without starting a real server -->
+        <!-- Tests: in-process server and channel, and Spring Boot's gRPC auto-configurations without a real server -->
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-inprocess</artifactId>
@@ -73,9 +69,7 @@
 
     <build>
         <plugins>
-            <!-- Generates Java classes from src/main/proto at each build: messages and, through protoc-gen-grpc-java,
-                 the service base class (server) and stubs (client). protoc and plugin versions and the generate goal
-                 are configured by spring-boot-starter-parent -->
+            <!-- Generates messages, service bases and stubs from src/main/proto; configured by the Boot parent -->
             <plugin>
                 <groupId>io.github.ascopes</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>

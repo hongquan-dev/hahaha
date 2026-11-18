@@ -125,7 +125,7 @@ Lỗi có `success: false`, `code` là mã lỗi nghiệp vụ, và `errors` (n�
 }
 ```
 
-Postman collection: [`postman/fd-auth-service.postman_collection.json`](../postman/fd-auth-service.postman_collection.json).
+cURL từng API (copy, dán vào thanh URL của Postman): [`postman/fd-auth-service/`](../postman/fd-auth-service/).
 Chạy theo thứ tự Register → Login → Me → Refresh → Me → Logout → Me; Postman tự lưu và gửi lại cookie.
 
 ---
@@ -494,7 +494,15 @@ Mọi property `auth.*` được bind vào `config/properties/AuthProperties` l�
   (`config/security/JwtKeyConfig`).
 
 > **Khoá RSA hiện đặt thẳng trong `application.properties`** (đã thống nhất cho giai đoạn dev). Trước khi deploy thật:
-> sinh cặp khoá mới, đọc từ secret / biến môi trường, đổi `auth.jwt.key-id`. Lệnh sinh khoá có trong comment của file.
+> sinh cặp khoá mới, đọc từ secret / biến môi trường, đổi `auth.jwt.key-id`.
+
+**Sinh cặp khoá RSA** (2048 bit, private key PKCS#8, public key X.509), rồi dán phần Base64 giữa hai dòng
+`BEGIN`/`END` vào `auth.jwt.private-key` / `auth.jwt.public-key` (dòng `BEGIN`/`END` và xuống dòng được bỏ qua):
+
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out private.pem
+openssl pkey -in private.pem -pubout -out public.pem
+```
 
 ---
 

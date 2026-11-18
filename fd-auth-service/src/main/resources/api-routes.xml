@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <routes>
-    <!-- Registration. The schema checks the body structure, the validator checks required fields and format
-         (no database query); duplicate username/email/phone number are checked by AuthService -->
+    <!-- Registration: schema checks structure, validator values (no DB), AuthService duplicate accounts -->
     <route>
         <method>POST</method>
         <path>/auth/register</path>
@@ -10,9 +9,7 @@
         <controller>com.fooddelivery.auth.controller.AuthController</controller>
     </route>
 
-    <!-- Login with a username, email or phone number; sets the access_token and refresh_token cookies. The schema
-         checks the body structure, the validator only presence and length; the account and password are checked by
-         AuthService -->
+    <!-- Login, sets both cookies: schema checks structure, validator presence and length, AuthService the account -->
     <route>
         <method>POST</method>
         <path>/auth/login</path>
@@ -21,31 +18,28 @@
         <controller>com.fooddelivery.auth.controller.AuthController</controller>
     </route>
 
-    <!-- Current user of the access_token cookie. No body, so no schema or validator; the token is checked by
-         AuthService -->
+    <!-- Current user of the access_token cookie; no body, AuthService checks the token -->
     <route>
         <method>GET</method>
         <path>/auth/me</path>
         <controller>com.fooddelivery.auth.controller.AuthController</controller>
     </route>
 
-    <!-- Renews both cookies from the refresh_token cookie (rotation). No body, so no schema or validator; the token is
-         checked by SessionService -->
+    <!-- Renews both cookies from the refresh_token cookie (rotation); no body, SessionService checks the token -->
     <route>
         <method>POST</method>
         <path>/auth/refresh</path>
         <controller>com.fooddelivery.auth.controller.AuthController</controller>
     </route>
 
-    <!-- Ends the session of the refresh_token cookie and clears both cookies. No body, so no schema or validator -->
+    <!-- Ends the session of the refresh_token cookie and clears both cookies; no body -->
     <route>
         <method>POST</method>
         <path>/auth/logout</path>
         <controller>com.fooddelivery.auth.controller.AuthController</controller>
     </route>
 
-    <!-- Internal: a user for another service, e.g. order-service (the gateway has no route for /internal/**). No body,
-         so no schema; the validator checks that userId is a 14-digit user ID, UserQueryService that it exists -->
+    <!-- Internal user for other services, no gateway route: validator checks the ID, UserQueryService it exists -->
     <route>
         <method>GET</method>
         <path>/internal/users/{userId}</path>
@@ -53,8 +47,7 @@
         <controller>com.fooddelivery.auth.controller.InternalUserController</controller>
     </route>
 
-    <!-- Test API: owner and lifetime of the access_token cookie, used by the frontend to check the session and the
-         refresh token. No body, so no schema or validator; the token is checked by PingService -->
+    <!-- Test API: owner and lifetime of the access_token cookie; no body, PingService checks the token -->
     <route>
         <method>GET</method>
         <path>/auth/test/ping</path>
