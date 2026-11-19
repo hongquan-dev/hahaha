@@ -1,1 +1,0 @@
-curl --location 'http://localhost:8081/internal/users/17939522301001'

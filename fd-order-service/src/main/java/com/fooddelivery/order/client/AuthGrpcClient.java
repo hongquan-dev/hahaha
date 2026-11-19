@@ -19,14 +19,13 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Calls the gRPC {@code fooddelivery.auth.v1.UserService} of auth-service through the stub created by
- * {@code GrpcClientConfig}. The gRPC counterpart of {@link AuthHttpClient}: same input, same {@link AuthUser}, same
- * errors, so the caller does not depend on the transport.
+ * {@code GrpcClientConfig}, and returns the user as an {@link AuthUser}.
  *
  * <p>Wraps the generated stub so the rest of order-service never sees protobuf classes or gRPC statuses. Every call
  * has a deadline of {@code services.auth.timeout}. Failures become a {@code BusinessException}:
  * <ul>
  *   <li>{@code NOT_FOUND} / {@code INVALID_ARGUMENT}: 404 / 400 with the error code of the {@code error-code} trailer,
- *       e.g. {@code USER_NOT_FOUND}, as the HTTP API answers.</li>
+ *       e.g. {@code USER_NOT_FOUND}, as thrown inside auth-service.</li>
  *   <li>{@code UNAVAILABLE} (auth-service down) or {@code DEADLINE_EXCEEDED} (too slow): 503
  *       {@code AUTH_UNAVAILABLE}.</li>
  *   <li>Any other status: 502 {@code AUTH_CALL_FAILED}.</li>

@@ -1,8 +1,8 @@
 package com.fooddelivery.order.client;
 
 /**
- * A user as auth-service returns it, whichever transport fetched it: {@link AuthHttpClient} reads it from the
- * {@code data} of {@code GET /internal/users/{userId}}, {@link AuthGrpcClient} maps it from {@code UserResponse}.
+ * A user as auth-service returns it, mapped by {@link AuthGrpcClient} from the gRPC {@code UserResponse}, so the rest of
+ * order-service never sees protobuf classes.
  *
  * @param id          14-digit ID, e.g. {@code 17939313751001}
  * @param username    lowercase

@@ -41,7 +41,6 @@ Thư viện dùng chung `food-delivery-libs` (repo riêng) phải được `mvn 
 ```
 Client ──> gateway :8090 ── /auth/**  (login, register: RateLimit theo IP) ──> auth :8081
                          └─ /order/** (JwtAuth: kiểm tra token, gắn X-User-Id) ──> order :8083
-                                                                        ├─ HTTP ─> auth :8081 /internal/users/{id}
                                                                         └─ gRPC ─> auth :9081 UserService/GetUser
 ```
 
@@ -51,7 +50,7 @@ Chi tiết từng bước và kết quả kiểm thử: [`docs/gateway-grpc-chec
 
 Client (frontend, Postman) chỉ gọi qua API Gateway `8090`; gateway chuyển `/auth/**` sang auth-service và
 `/order/**` (sau khi kiểm tra token) sang order-service. Các port còn lại là nội bộ, không được mở ra ngoài: service
-phía sau tin header `X-User-Id` do gateway gắn, và API `/internal/**`, gRPC chưa có xác thực giữa các service.
+phía sau tin header `X-User-Id` do gateway gắn, và gRPC chưa có xác thực giữa các service.
 
 | Service | Port | Health check |
 |---|---:|---|

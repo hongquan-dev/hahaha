@@ -85,7 +85,6 @@ AUTH_JWT_ACCESSTTL=10s ./mvnw spring-boot:run -pl fd-auth-service
 | `POST` | `/auth/refresh` | (không) | 200 + 2 cookie mới | Làm mới phiên (rotation) |
 | `POST` | `/auth/logout` | (không) | 200 + xoá 2 cookie | Kết thúc phiên; luôn 200 |
 | `GET` | `/auth/.well-known/jwks.json` | (không) | 200 + JWK Set | Public key để kiểm tra access token (xem 4.1) |
-| `GET` | `/internal/users/{userId}` | (không) | 200 + user | **Nội bộ**, cho service khác (vd. order). Gateway không route `/internal/**` |
 
 Mọi response (trừ JWKS, xem 4.1) đều theo định dạng chung `ApiResponse` của `common-web-lib`:
 
@@ -153,7 +152,6 @@ Request
 | `GET /auth/me` | (không) | (không) | `AuthService.currentUser` |
 | `POST /auth/refresh` | (không) | (không) | `SessionService.refresh` |
 | `POST /auth/logout` | (không) | (không) | `SessionService.end` |
-| `GET /internal/users/{userId}` | (không) | `InternalUserValidator.validateGetUser` | `UserQueryService.getById` |
 
 `BusinessException` ném ra từ service được `GlobalExceptionHandler` (`common-web-lib`) chuyển thành response lỗi.
 Riêng `/auth/refresh` bắt lỗi 401 ngay trong controller để gắn thêm header xoá cookie.
@@ -529,9 +527,7 @@ src/main/java/com/fooddelivery/auth/
 │                                 do fd-grpc-api tự đăng ký (BusinessExceptionGrpcHandler, GrpcLoggingInterceptor)
 ├── controller/
 │   ├── AuthController            5 API; gắn/xoá cookie
-│   ├── JwksController            GET /auth/.well-known/jwks.json (public key, ngoài API flow)
-│   ├── InternalUserController    GET /internal/users/{userId} (cho service khác)
-│   └── TestController            GET /auth/test/ping
+│   └── JwksController            GET /auth/.well-known/jwks.json (public key, ngoài API flow)
 ├── dto/                          RegisterRequest, LoginRequest (body), UserDto (response),
 │                                 InternalUserDto (user trả cho service khác: không có email, hash)
 ├── repository/                   UserRepository, RefreshTokenRepository (findByTokenHashForUpdate, revokeFamily)
@@ -542,19 +538,19 @@ src/main/java/com/fooddelivery/auth/
 │   ├── session/                  phiên đăng nhập
 │   │   ├── SessionService        start, refresh (rotation), end
 │   │   └── IssuedTokens          access + refresh token + 2 mốc hết hạn
-│   ├── user/UserQueryService     tra cứu user cho service khác (dùng chung HTTP và gRPC)
+│   ├── user/UserQueryService     tra cứu user cho service khác qua gRPC
 │   └── token/                    token
 │       ├── TokenService          ký/kiểm tra JWT, sinh/băm refresh token
 │       └── AccessTokenVerification  VALID / EXPIRED / INVALID
 ├── validation/
 │   ├── AuthValidator             validateRegister, validateLogin
-│   └── InternalUserValidator     validateGetUser (userId là ID 14 số của user)
+│   └── InternalUserValidator     checkUserId cho gRPC (userId là ID 14 số của user)
 └── web/
     ├── AuthCookies               dựng/xoá 2 cookie, tên cookie là hằng số
     └── OriginCheckFilter         chống CSRF
 
 src/main/resources/
-├── api-routes.xml                khai báo 7 route (5 API auth, ping, internal users)
+├── api-routes.xml                khai báo 5 route (5 API auth)
 ├── application.properties
 └── schemas/                      register.json, login.json
 ```
@@ -612,8 +608,8 @@ Frontend mẫu (React + TS + Vite): `Food Delivery/hehehe`. Các điểm bắt b
 | `OriginCheckFilterTest` | 7 | GET; không có `Origin`; `Origin` hợp lệ, viết hoa; POST/PUT/PATCH/DELETE từ origin lạ; khác port; `Origin: null` |
 | `IdentifierNormalizerTest` | 9 | Các dạng SĐT; đầu số hợp lệ; bỏ khoảng trắng mọi loại (U+00A0, U+202F...) ở hai đầu; `null` |
 | `LogMaskerTest` | 19 | Email giữ ký tự đầu + tên miền; SĐT giữ đầu số + 3 số cuối; identifier đăng nhập: SĐT che như SĐT, còn lại chỉ giữ 2 ký tự đầu, mật khẩu gõ nhầm ô không lọt vào log; giá trị quá ngắn che hết; `null` |
-| `InternalUserValidatorTest` | 3 | ID user hợp lệ; `abc`, quá ngắn/dài, số âm, rỗng; ID của order; chữ số loại không tồn tại |
-| `UserGrpcServiceTest` | 5 | Qua stub thật trên gRPC server in-process: đủ field như HTTP; không có SĐT thì field không được đặt; không có user → `NOT_FOUND` + `USER_NOT_FOUND`; ID sai → `INVALID_ARGUMENT` mà không truy vấn DB; lỗi lạ → `INTERNAL` không lộ chi tiết |
+| `InternalUserValidatorTest` | 6 | ID user hợp lệ; quá ngắn/dài, số âm, 0; ID của order; chữ số loại không tồn tại |
+| `UserGrpcServiceTest` | 5 | Qua stub thật trên gRPC server in-process: đủ field; không có SĐT thì field không được đặt; không có user → `NOT_FOUND` + `USER_NOT_FOUND`; ID sai → `INVALID_ARGUMENT` mà không truy vấn DB; lỗi lạ → `INTERNAL` không lộ chi tiết |
 | `UserQueryServiceTest` | 3 | Trả user không kèm hash/email; user bị khoá trả `active=false`; không có → 404 `USER_NOT_FOUND` |
 | `JwksControllerTest` | 3 | Header `Content-Type`, `Cache-Control`; chỉ có tham số public kèm `kid`, `use`, `alg`; token ký bằng private key kiểm tra được bằng key đọc lại từ JWKS |
 
@@ -642,7 +638,6 @@ dùng lại refresh token cũ → thông báo "lý do bảo mật"; mất cookie
 | 400 | `INVALID_REQUEST_BODY` | register, login | Body sai cấu trúc (schema) |
 | 400 | `INVALID_REGISTER_INFO` | register | Giá trị field sai, kèm `errors` |
 | 400 | `INVALID_LOGIN_INFO` | login | Thiếu giá trị hoặc quá dài, kèm `errors` |
-| 400 | `INVALID_USER_ID` | internal users | `userId` không phải ID 14 số của user, kèm `errors` |
 | 401 | `INVALID_CREDENTIALS` | login | Không có tài khoản hoặc sai mật khẩu |
 | 401 | `TOKEN_EXPIRED` | me | Access token thật nhưng hết hạn |
 | 401 | `UNAUTHENTICATED` | me | Thiếu/sai access token; user không còn hoặc bị khoá |
@@ -651,7 +646,6 @@ dùng lại refresh token cũ → thông báo "lý do bảo mật"; mất cookie
 | 403 | `ACCOUNT_DISABLED` | login | Đúng mật khẩu nhưng tài khoản bị khoá |
 | 403 | `ORIGIN_NOT_ALLOWED` | mọi POST/PUT/PATCH/DELETE | `Origin` không nằm trong whitelist |
 | 404 | `API_NOT_FOUND` | (mọi path) | API chưa khai báo trong `api-routes.xml` |
-| 404 | `USER_NOT_FOUND` | internal users | Không có user với ID này |
 | 409 | `USER_ALREADY_EXISTS` | register | Trùng username/email/SĐT, kèm `errors` |
 | 409 | `REFRESH_CONFLICT` | refresh | Tab khác vừa refresh ≤ 10 giây trước; cookie **không** bị xoá |
 | 429 | `TOO_MANY_LOGIN_ATTEMPTS` | login | Tài khoản / identifier đang bị khoá tạm sau nhiều lần sai, kể cả khi đúng mật khẩu |
@@ -688,7 +682,7 @@ Checklist chi tiết từng bước đã làm: [`docs/auth-login-checklist.md`](
 
 ## 15. gRPC `UserService`
 
-Cùng nghiệp vụ với `GET /internal/users/{userId}` nhưng qua gRPC, cho service khác trong mạng nội bộ (vd. order).
+Tra cứu user qua gRPC cho service khác trong mạng nội bộ (vd. order); auth-service không có API HTTP nội bộ.
 Hợp đồng: [`fd-grpc-api/src/main/proto/auth/v1/user_service.proto`](../fd-grpc-api/src/main/proto/auth/v1/user_service.proto).
 
 ```
@@ -699,7 +693,7 @@ Client (stub sinh từ .proto) ──HTTP/2, protobuf──> Netty :9081
 ```
 
 - Không có API flow (`api-routes.xml`, JSON Schema) cho gRPC: cấu trúc message do protobuf đảm bảo, giá trị do
-  `UserGrpcService` tự kiểm tra bằng **cùng** hàm `InternalUserValidator.checkUserId` với HTTP.
+  `UserGrpcService` tự kiểm tra bằng `InternalUserValidator.checkUserId`.
 - Lỗi: `BusinessException` → mã gRPC tương ứng + mã lỗi nghiệp vụ trong trailer `error-code`. Tên các metadata
   (`error-code`, `x-caller-service`) là hằng số trong `GrpcMetadataKeys` của `fd-grpc-api`, dùng chung với client:
 

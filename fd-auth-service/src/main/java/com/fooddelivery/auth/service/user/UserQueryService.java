@@ -8,8 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Read-only lookups of users for other services. Shared by the HTTP API {@code GET /internal/users/{userId}} and the
- * gRPC {@code UserService.GetUser}, so both transports apply the same rules and return the same data.
+ * Read-only lookups of users for other services, called by the gRPC {@code UserService.GetUser}
+ * ({@code UserGrpcService}).
  */
 @Service
 public class UserQueryService {
@@ -26,7 +26,7 @@ public class UserQueryService {
      *
      * <p>Throws {@code BusinessException} 404 {@code USER_NOT_FOUND} if no user has this ID.
      *
-     * @param userId 14-digit user ID, already checked by {@code InternalUserValidator} on the HTTP side
+     * @param userId 14-digit user ID, already checked by {@code InternalUserValidator}
      * @return the user, without password hash or email
      */
     @Transactional(readOnly = true)

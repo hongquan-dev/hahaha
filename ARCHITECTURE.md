@@ -19,7 +19,7 @@ Thư viện dùng chung nằm ở repo riêng `food-delivery-libs` (format `ApiR
 Schema -> validator, ID 14 chữ số; xem `ARCHITECTURE.md` của repo đó), cài vào `~/.m2` trước khi build backend.
 
 Trạng thái hiện tại: gateway, auth-service và order-service đã có chức năng (đăng ký, đăng nhập, phiên, kiểm tra token
-ở gateway, gọi chéo HTTP + gRPC). Restaurant, delivery, chat mới chỉ có health check.
+ở gateway, order gọi auth qua gRPC). Restaurant, delivery, chat mới chỉ có health check.
 
 ---
 
@@ -42,15 +42,15 @@ food-delivery-libs (~/.m2)
 | `common-lib` | - | Không có code Java: gom dependency chung cho service Spring MVC (4 lib của `food-delivery-libs`, JPA, PostgreSQL, Flyway, Log4j2) và `log4j2-spring.xml` chung | - |
 | `fd-grpc-api` | - | Thư viện (jar), không chạy như service. Hợp đồng gRPC giữa service: file `.proto` (sinh code bằng `protobuf-maven-plugin`), `GrpcMetadataKeys`; và phần hỗ trợ gRPC dùng chung, tự đăng ký vào mọi service có gRPC server/client (`GrpcSupportAutoConfiguration`) | - |
 | `fd-gateway-service` | 8090 | Cổng duy nhất cho client: route `/auth/**`, `/order/**`; kiểm tra access token (`JwtAuth`) trước order | - |
-| `fd-auth-service` | 8081, gRPC 9081 | Tài khoản, đăng nhập, phiên (refresh token), ký access token RS256, JWKS; cung cấp user cho service khác qua HTTP `/internal/**` và gRPC | `FD_auth_db` |
-| `fd-order-service` | 8083 | Đơn hàng (chưa có nghiệp vụ); hiện có hai API test gọi auth qua HTTP và gRPC | `FD_order_db` (chưa có bảng) |
+| `fd-auth-service` | 8081, gRPC 9081 | Tài khoản, đăng nhập, phiên (refresh token), ký access token RS256, JWKS; cung cấp user cho service khác qua gRPC | `FD_auth_db` |
+| `fd-order-service` | 8083 | Đơn hàng (chưa có nghiệp vụ); hiện có một API test gọi auth qua gRPC | `FD_order_db` (chưa có bảng) |
 | `fd-restaurant-service` | 8082 | Nhà hàng, món ăn (chưa có nghiệp vụ) | - |
 | `fd-delivery-service` | 8084 | Giao hàng (chưa có nghiệp vụ) | - |
 | `fd-chat-service` | 8085 | Chat (chưa có nghiệp vụ) | - |
 
 Quy tắc phụ thuộc (không được phá):
 
-- Service **không** phụ thuộc service khác; gọi nhau qua HTTP `/internal/**` hoặc gRPC, hợp đồng gRPC chỉ nằm trong
+- Service **không** phụ thuộc service khác; gọi nhau qua gRPC (hoặc HTTP `/internal/**`), hợp đồng gRPC chỉ nằm trong
   `fd-grpc-api`.
 - Service Spring MVC kéo thư viện qua `common-lib`, không khai báo từng lib. Gateway là WebFlux nên chỉ dùng
   `common-dto-lib` (cùng format response), không dùng `common-lib`.
@@ -116,11 +116,9 @@ Phần hỗ trợ nằm ở package `com.fooddelivery.grpc.support`, đăng ký 
 |---|---|---|---|
 | `AuthApplication` | (gốc) | Entry point | (không cần) |
 | `AuthController` | `controller` | `/auth/register`, `/login`, `/me`, `/refresh`, `/logout`; đặt/xoá cookie | `AuthControllerTest` |
-| `InternalUserController` | `controller` | `GET /internal/users/{userId}` cho service khác | `InternalUserControllerTest` |
 | `JwksController` | `controller` | `GET /auth/.well-known/jwks.json` (path exclude khỏi API flow) | `JwksControllerTest` |
-| `TestController` | `controller` | `GET /auth/test/ping` | `TestControllerTest` |
 | `AuthValidator` | `validation` | Validator của register, login: bắt buộc, độ dài, định dạng | `AuthValidatorTest` |
-| `InternalUserValidator` | `validation` | Validator của `/internal/users/{userId}`: ID đúng định dạng user | `InternalUserValidatorTest` |
+| `InternalUserValidator` | `validation` | `checkUserId` cho gRPC `GetUser`: ID đúng định dạng user | `InternalUserValidatorTest` |
 | `AuthService` | `service.auth` | Đăng ký (trùng username/email/SĐT), đăng nhập, user hiện tại | `AuthServiceLoginTest` (login, me), `AuthServiceRegisterTest` |
 | `LoginResult` | `service.auth` | User + token của một lần đăng nhập | (record) |
 | `LoginThrottleService` | `service.auth` | Khoá tạm theo tài khoản / identifier sau nhiều lần đăng nhập sai -> 429 `TOO_MANY_LOGIN_ATTEMPTS` | `LoginThrottleServiceTest` |
@@ -130,8 +128,7 @@ Phần hỗ trợ nằm ở package `com.fooddelivery.grpc.support`, đăng ký 
 | `TokenService` | `service.token` | Ký / kiểm tra access token RS256, sinh và hash refresh token; không DB | `TokenServiceTest` |
 | `AccessTokenVerification` | `service.token` | Kết quả kiểm tra access token | (kiểm qua `TokenServiceTest`) |
 | `UserQueryService` | `service.user` | Đọc user cho service khác; dùng chung cho HTTP và gRPC | `UserQueryServiceTest` |
-| `PingService` | `service.test` | Logic của `/auth/test/ping` | `PingServiceTest` |
-| `UserGrpcService` | `grpc` | gRPC `UserService/GetUser`, cùng logic với `InternalUserController` | `UserGrpcServiceTest` |
+| `UserGrpcService` | `grpc` | gRPC `UserService/GetUser` cho service khác (vd. order) | `UserGrpcServiceTest` |
 | `AuthCookies` | `web` | Dựng `Set-Cookie` cho `access_token`, `refresh_token` | `AuthCookiesTest` |
 | `OriginCheckFilter` | `web` | Chống CSRF: request thay đổi dữ liệu từ origin lạ -> 403 `ORIGIN_NOT_ALLOWED` | `OriginCheckFilterTest` |
 | `WebFilterConfig` | `config.web` | Đăng ký filter với thứ tự rõ ràng | (không cần) |
@@ -151,10 +148,9 @@ Phần hỗ trợ nằm ở package `com.fooddelivery.grpc.support`, đăng ký 
 | `RefreshTokenRepository` | `repository` | JPA `refresh_tokens`, tra theo hash | (Spring Data) |
 | `LoginFailureRepository` | `repository` | JPA `login_failures`: tạo dòng nếu chưa có, khoá dòng khi cập nhật | (Spring Data) |
 | `UserDto` | `dto` | User trả về client (không có hash mật khẩu) | (record) |
-| `InternalUserDto` | `dto` | User trả cho service khác, chung cho HTTP và gRPC | (record) |
+| `InternalUserDto` | `dto` | User trả cho service khác qua gRPC | (record) |
 | `LoginRequest` | `dto` | Body `POST /auth/login` | (record) |
 | `RegisterRequest` | `dto` | Body `POST /auth/register`; `normalized()` dùng `IdentifierNormalizer` | `RegisterRequestTest` |
-| `PingResponse` | `dto` | Data của `/auth/test/ping` | (record) |
 
 Resource: `api-routes.xml` (khai báo 8 API), `schemas/login.json`, `schemas/register.json`,
 `db/migration/V1__create_users_and_refresh_tokens.sql`, `V2__add_unique_phone_number_to_users.sql`,
@@ -166,15 +162,14 @@ Resource: `api-routes.xml` (khai báo 8 API), `schemas/login.json`, `schemas/reg
 |---|---|---|---|
 | `OrderApplication` | (gốc) | Entry point | (không cần) |
 | `OrderController` | `controller` | `GET /order/health` | (không cần) |
-| `AuthTestController` | `controller` | `GET /order/test/auth-http`, `/order/test/auth-grpc` | `AuthTestControllerTest` |
+| `AuthTestController` | `controller` | `GET /order/test/auth-grpc` | `AuthTestControllerTest` |
 | `AuthTestValidator` | `validation` | Kiểm tra `X-User-Id` do gateway gắn (thiếu/sai -> 401) | `AuthTestValidatorTest` |
-| `AuthCallTestService` | `service` | Đo thời gian, gọi auth qua client HTTP hoặc gRPC | `AuthCallTestServiceTest` |
-| `AuthHttpClient` | `client` | `RestClient` -> `GET :8081/internal/users/{id}`; lỗi -> `BusinessException` | `AuthHttpClientTest` |
+| `AuthCallTestService` | `service` | Đo thời gian, gọi auth qua `AuthGrpcClient` | `AuthCallTestServiceTest` |
 | `AuthGrpcClient` | `client` | Stub gRPC -> `UserService/GetUser` với deadline; status -> `BusinessException` | `AuthGrpcClientTest` |
-| `AuthUser` | `client` | User nhận từ auth, chung cho hai client | (record) |
-| `AuthClientProperties` | `config` | Bind `services.auth.*` (URL HTTP, timeout), kiểm tra lúc startup | `AuthClientPropertiesTest` |
+| `AuthUser` | `client` | User nhận từ auth qua gRPC, không lộ class protobuf | (record) |
+| `AuthClientProperties` | `config` | Bind `services.auth.timeout` (deadline gRPC), kiểm tra lúc startup | `AuthClientPropertiesTest` |
 | `GrpcClientConfig` | `config` | `@ImportGrpcClients`: bean stub trên kênh `auth` | (không cần) |
-| `AuthCallResult` | `dto` | Data của API test: transport, thời gian, user | (record) |
+| `AuthCallResult` | `dto` | Data của API test: thời gian, user | (record) |
 
 Resource: `api-routes.xml` (3 API), `application.properties`.
 
@@ -224,12 +219,10 @@ gọi auth mỗi request.
 ### Gọi giữa service (order -> auth)
 
 ```
-AuthTestController -> AuthCallTestService ─┬─ AuthHttpClient  ── HTTP ─> auth /internal/users/{id} -> InternalUserController
-                                           └─ AuthGrpcClient  ── gRPC ─> auth :9081 UserGrpcService
-                                                                             └─ cả hai -> UserQueryService
+AuthTestController -> AuthCallTestService -> AuthGrpcClient ── gRPC ─> auth :9081 UserGrpcService -> UserQueryService
 ```
 
-Lỗi của auth giữ nguyên mã: HTTP 404 / gRPC `NOT_FOUND` + trailer `error-code` -> `BusinessException` cùng mã ở order;
+Lỗi của auth giữ nguyên mã: gRPC `NOT_FOUND` + trailer `error-code` -> `BusinessException` cùng mã ở order;
 không kết nối được / quá timeout -> 503 `AUTH_UNAVAILABLE`; lỗi khác -> 502 `AUTH_CALL_FAILED`.
 
 ---
@@ -270,7 +263,6 @@ không kết nối được / quá timeout -> 503 `AUTH_UNAVAILABLE`; lỗi khá
   `AuthCookies`; frontend dựa vào chúng.
 - **gRPC**: `.proto` chỉ thêm field mới, không đổi số/kiểu field cũ; package có version (`auth.v1`). Lỗi nghiệp vụ trả
   trailer `error-code` (`GrpcMetadataKeys`).
-- **HTTP nội bộ và gRPC trả cùng dữ liệu** (`InternalUserDto`, `UserQueryService`).
 - **Mã lỗi** gửi client (`USER_NOT_FOUND`, `TOKEN_EXPIRED`, `AUTH_UNAVAILABLE`...): client và service khác rẽ nhánh
   theo chúng.
 - **Migration đã commit** không sửa, không xoá.

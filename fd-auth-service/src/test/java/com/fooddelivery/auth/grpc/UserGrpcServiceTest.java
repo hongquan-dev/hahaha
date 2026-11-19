@@ -60,7 +60,7 @@ class UserGrpcServiceTest {
     }
 
     @Test
-    void returnsTheUserWithTheSameFieldsAsTheHttpApi() {
+    void returnsTheUserWithThisId() {
         User user = new User(USER_ID, "quan", "$2a$10$hash", "quan@test.com", "+84912345678", "CUSTOMER");
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
 

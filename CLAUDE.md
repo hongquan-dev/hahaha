@@ -38,7 +38,7 @@ Mỗi API HTTP của backend (kể cả health check và API nội bộ `/intern
 
 - Mỗi service một thư mục `postman/<module>/`. Tên file là **method viết hoa + path như trong `api-routes.xml` /
   controller, `/` đổi thành `_`** (tên file không được chứa `/`), vd. `POST /auth/login` -> `POST_auth_login.txt`,
-  `GET /internal/users/{userId}` -> `GET_internal_users_{userId}.txt`. Cách dùng và bảng giá trị giả:
+  `GET /auth/.well-known/jwks.json` -> `GET_auth_.well-known_jwks.json.txt`. Cách dùng và bảng giá trị giả:
   `postman/README.md`.
 - File chỉ chứa **đúng một lệnh cURL**, không comment hay chữ nào khác: chọn hết, copy, dán vào thanh URL của Postman.
 - URL theo đường client thật: API công khai qua gateway `http://localhost:8090`; API nội bộ và service chưa có route ở
@@ -84,7 +84,7 @@ Code chỉ được coi là xong khi có test chứng minh nó chạy đúng. Á
   annotation, vd. `@Disabled("BUG: ...")`, và phải báo lại cho người dùng.
 - **Unit test không dùng tài nguyên thật:** repository mock bằng Mockito, HTTP server phụ thuộc thay bằng
   `com.sun.net.httpserver.HttpServer` cục bộ, gRPC bằng server in-process (`grpc-inprocess`), thời gian bằng `Clock` cố
-  định. Ví dụ: `AuthServiceLoginTest`, `AuthHttpClientTest`, `AuthGrpcClientTest`, `UserGrpcServiceTest`.
+  định. Ví dụ: `AuthServiceLoginTest`, `JwksKeyProviderTest`, `AuthGrpcClientTest`, `UserGrpcServiceTest`.
 - **Trước khi báo xong hoặc commit:** chạy `./mvnw test -pl <module>` cho mọi module bị ảnh hưởng (hoặc `./mvnw clean
   install` khi đổi module dùng chung như `common-lib`, `fd-grpc-api`); tất cả phải pass. Báo lại số test đã chạy, và
   nói rõ nếu có phần chưa có test.

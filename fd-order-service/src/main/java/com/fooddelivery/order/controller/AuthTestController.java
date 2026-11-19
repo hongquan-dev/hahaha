@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Test APIs of order-service, under {@code /order/test}: each fetches the logged-in user from auth-service, one over
- * HTTP and one over gRPC, so the two transports can be compared. They change nothing.
+ * Test API of order-service, under {@code /order/test}: fetches the logged-in user from auth-service over gRPC, to
+ * check that the two services reach each other. It changes nothing.
  *
  * <p>Reached through the gateway, whose {@code JwtAuth} filter checks the access token and sets {@code X-User-Id};
  * order-service itself never sees the token.
@@ -27,19 +27,6 @@ public class AuthTestController {
 
     public AuthTestController(AuthCallTestService authCallTestService) {
         this.authCallTestService = authCallTestService;
-    }
-
-    /**
-     * {@code GET /order/test/auth-http}: the caller fetched from {@code GET /internal/users/{userId}} of auth-service,
-     * with 200.
-     *
-     * <p>Flow: gateway {@code JwtAuth} (token) -> {@code AuthTestValidator.validateCaller} ({@code X-User-Id}) -> this
-     * method -> {@link AuthCallTestService#callOverHttp} -> {@code AuthHttpClient}.
-     */
-    @GetMapping("/auth-http")
-    public ResponseEntity<ApiResponse<AuthCallResult>> authOverHttp(ApiRequest request) {
-        AuthCallResult result = authCallTestService.callOverHttp(userId(request));
-        return ResponseHandler.generateResponse(ApiStatus.OK, ApiResponse.success(result));
     }
 
     /**

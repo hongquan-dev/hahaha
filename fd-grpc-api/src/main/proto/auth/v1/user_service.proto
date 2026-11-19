@@ -1,5 +1,5 @@
-// Users of auth-service, for other services inside the network (e.g. order-service). The gRPC counterpart of
-// GET /internal/users/{userId}: same rules (UserQueryService) and same fields (InternalUserDto).
+// Users of auth-service, for other services inside the network (e.g. order-service), read by UserQueryService and
+// returned with the fields of InternalUserDto.
 //
 // Served by auth-service on port 9081 (spring.grpc.server.port). Field numbers are the wire format: never change or
 // reuse one; add new fields with new numbers instead.
@@ -12,7 +12,7 @@ option java_multiple_files = true;
 option java_outer_classname = "UserServiceProto";
 
 service UserService {
-  // A user by ID, active or locked. Errors, with the error code of the HTTP API in the "error-code" metadata:
+  // A user by ID, active or locked. Errors, with the error code in the "error-code" metadata:
   //   INVALID_ARGUMENT (INVALID_USER_ID): user_id is not the 14-digit ID of a user
   //   NOT_FOUND (USER_NOT_FOUND): no user has this ID
   rpc GetUser(GetUserRequest) returns (UserResponse);

@@ -1,52 +1,25 @@
 package com.fooddelivery.auth.validation;
 
-import com.fooddelivery.apiflow.request.ApiRequest;
 import com.fooddelivery.dto.response.ApiStatus;
 import com.fooddelivery.id.entity.EntityType;
 import com.fooddelivery.id.entity.IdUtils;
 import com.fooddelivery.web.exception.BusinessException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.springframework.stereotype.Component;
-
-import java.util.regex.Pattern;
 
 /**
- * Validators of the APIs in {@code InternalUserController}, called by the API flow at request time, before the
- * controller.
+ * Check of the user ID that another service asks auth-service about, called at request time by
+ * {@code UserGrpcService} before it queries the database.
  *
- * <p>Only checks the input itself and never queries the database; whether the user exists is checked by
- * {@code UserQueryService}.
+ * <p>Only checks the ID itself and never queries the database; whether the user exists is checked by
+ * {@code UserQueryService}. gRPC has no API flow, so this is a plain static method rather than a {@code <validator>}
+ * of {@code api-routes.xml}.
  */
-@Component
-public class InternalUserValidator {
-    private static final Logger log = LogManager.getLogger(InternalUserValidator.class);
+public final class InternalUserValidator {
 
-    // Exactly 14 digits, the format of IdUtils, e.g. "17939313751001"
-    private static final Pattern ID = Pattern.compile("^\\d{14}$");
-
-    /**
-     * Validator of {@code GET /internal/users/{userId}} ({@code <validator>} in {@code api-routes.xml}).
-     *
-     * <p>Throws {@code BusinessException} 400 {@code INVALID_USER_ID}, with a field error on {@code userId}, if the
-     * path variable is not a 14-digit ID of a user, e.g. {@code abc}, {@code 123} or the ID of an order (the 11th digit
-     * tells the type of object).
-     *
-     * @param request the request, with the {@code userId} path variable
-     */
-    public void validateGetUser(ApiRequest request) {
-        String userId = request.getPathVariable("userId").asString();
-        log.info("[VALIDATE] [{}] {} | userId={}", request.getMethod(), request.getPath(), userId);
-
-        if (userId == null || !ID.matcher(userId).matches()) {
-            throw invalidUserId();
-        }
-        checkUserId(Long.parseLong(userId));
+    private InternalUserValidator() {
     }
 
     /**
-     * Same rule for a user ID that is already a number, e.g. the {@code user_id} of the gRPC {@code GetUserRequest},
-     * so both transports reject the same IDs with the same error.
+     * Checks that {@code userId} is the ID of a user, e.g. the {@code user_id} of the gRPC {@code GetUserRequest}.
      *
      * <p>Throws {@code BusinessException} 400 {@code INVALID_USER_ID}, with a field error on {@code userId}, if the ID
      * is not 14 digits or its 11th digit is not the code of {@code EntityType.USER}, e.g. {@code 0} or the ID of an

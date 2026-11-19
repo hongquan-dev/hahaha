@@ -2,8 +2,8 @@
 
 Service quản lý **đơn hàng** của ứng dụng giao đồ ăn. Chạy ở port `8083`, client gọi qua gateway (`8090`).
 
-Hiện mới có nền tảng (API flow, database, gọi sang auth-service) và hai API test so sánh HTTP với gRPC; nghiệp vụ đơn
-hàng chưa làm.
+Hiện mới có nền tảng (API flow, database, gọi sang auth-service) và một API test gọi sang auth-service qua gRPC; nghiệp
+vụ đơn hàng chưa làm.
 
 ---
 
@@ -28,14 +28,12 @@ Order khởi động được khi auth-service chưa chạy: kênh gRPC chỉ k�
 | Method | Path | Thành công | Mô tả |
 |---|---|---|---|
 | `GET` | `/order/health` | 200 + text | Health check, không cần token |
-| `GET` | `/order/test/auth-http` | 200 + `AuthCallResult` | User đang đăng nhập, lấy từ auth-service qua **HTTP** |
-| `GET` | `/order/test/auth-grpc` | 200 + `AuthCallResult` | Như trên, qua **gRPC** |
+| `GET` | `/order/test/auth-grpc` | 200 + `AuthCallResult` | User đang đăng nhập, lấy từ auth-service qua **gRPC** |
 
 ```json
 {
   "success": true, "status": 200, "code": "SUCCESS",
   "data": {
-    "transport": "gRPC",
     "elapsedMs": 4,
     "user": { "id": 17947973411001, "username": "p0test_97341", "phoneNumber": "+84994797341",
               "role": "CUSTOMER", "active": true }
@@ -43,7 +41,7 @@ Order khởi động được khi auth-service chưa chạy: kênh gRPC chỉ k�
 }
 ```
 
-`elapsedMs` là thời gian của riêng lời gọi sang auth-service. Hai API phải trả cùng `user`.
+`elapsedMs` là thời gian của riêng lời gọi gRPC sang auth-service.
 
 cURL từng API (copy, dán vào thanh URL của Postman): [`postman/fd-order-service/`](../postman/fd-order-service/).
 
@@ -59,15 +57,14 @@ order :8083
   ├─ api-routes.xml         API chưa khai báo                       → 404 API_NOT_FOUND
   ├─ AuthTestValidator      thiếu / sai X-User-Id (gọi bỏ qua gateway) → 401 UNAUTHENTICATED
   ├─ AuthTestController     lấy X-User-Id, gọi service
-  └─ AuthCallTestService    đo thời gian, gọi một trong hai client
-       ├─ AuthHttpClient    RestClient → GET  :8081/internal/users/{userId}
-       └─ AuthGrpcClient    stub       → gRPC :9081 UserService/GetUser (deadline mỗi lời gọi)
+  └─ AuthCallTestService    đo thời gian, gọi AuthGrpcClient
+       └─ AuthGrpcClient    stub → gRPC :9081 UserService/GetUser (deadline mỗi lời gọi)
 ```
 
 Order **không** đọc token: nó tin `X-User-Id` của gateway. Vì vậy port 8083 không được mở ra ngoài.
 
-Hai client có cùng đầu vào, cùng kết quả (`AuthUser`) và cùng cách báo lỗi, nên phần còn lại của order không phụ thuộc
-vào transport; protobuf và status gRPC chỉ nằm trong `AuthGrpcClient`.
+Protobuf và status gRPC chỉ nằm trong `AuthGrpcClient`: phần còn lại của order chỉ thấy `AuthUser` và
+`BusinessException`.
 
 ---
 
@@ -77,8 +74,8 @@ vào transport; protobuf và status gRPC chỉ nằm trong `AuthGrpcClient`.
 |---:|---|---|
 | 401 | `UNAUTHENTICATED` | Thiếu/sai token (gateway trả), hoặc gọi thẳng order không có `X-User-Id` |
 | 401 | `TOKEN_EXPIRED` | Token hết hạn (gateway trả); client refresh rồi gọi lại |
-| 404 | `USER_NOT_FOUND` | auth-service không có user này (HTTP 404 / gRPC `NOT_FOUND` + trailer `error-code`) |
-| 502 | `AUTH_CALL_FAILED` | auth-service trả 5xx / status gRPC khác, hoặc câu trả lời không đọc được |
+| 404 | `USER_NOT_FOUND` | auth-service không có user này (gRPC `NOT_FOUND` + trailer `error-code`) |
+| 502 | `AUTH_CALL_FAILED` | auth-service trả status gRPC khác (vd. `INTERNAL`) |
 | 503 | `AUTH_UNAVAILABLE` | auth-service không kết nối được hoặc quá `services.auth.timeout` (2s) |
 | 503 | `AUTH_UNAVAILABLE` | (gateway) chưa từng lấy được public key của auth-service |
 
@@ -88,8 +85,7 @@ vào transport; protobuf và status gRPC chỉ nằm trong `AuthGrpcClient`.
 
 | Property | Giá trị | Ý nghĩa |
 |---|---|---|
-| `services.auth.http-url` | `http://localhost:8081` | Base URL API HTTP của auth-service |
-| `services.auth.timeout` | `2s` (mặc định) | Thời gian chờ tối đa mỗi lời gọi: connect + read (HTTP), deadline (gRPC) |
+| `services.auth.timeout` | `2s` (mặc định) | Deadline của mỗi lời gọi gRPC sang auth-service |
 | `spring.grpc.client.channel.auth.target` | `static://localhost:9081` | Địa chỉ kênh gRPC `auth` |
 | `spring.datasource.url` | `jdbc:postgresql://localhost:5432/FD_order_db` | Database của order |
 
@@ -101,22 +97,21 @@ vào transport; protobuf và status gRPC chỉ nằm trong `AuthGrpcClient`.
 src/main/java/com/fooddelivery/order/
 ├── OrderApplication.java         entry point, @ConfigurationPropertiesScan
 ├── client/
-│   ├── AuthHttpClient            gọi auth qua HTTP, ánh xạ lỗi thành BusinessException
 │   ├── AuthGrpcClient            gọi auth qua gRPC (bọc stub), ánh xạ status thành BusinessException
-│   └── AuthUser                  user trả về, chung cho hai client
+│   └── AuthUser                  user trả về
 │                                 (header x-caller-service do CallerServiceClientInterceptor của fd-grpc-api gắn)
 ├── config/
-│   ├── AuthClientProperties      bind services.auth.*
+│   ├── AuthClientProperties      bind services.auth.timeout
 │   └── GrpcClientConfig          @ImportGrpcClients: tạo bean UserServiceBlockingStub trên kênh "auth"
 ├── controller/
 │   ├── OrderController           GET /order/health
-│   └── AuthTestController        GET /order/test/auth-http, /order/test/auth-grpc
-├── dto/AuthCallResult            transport + elapsedMs + user
-├── service/AuthCallTestService   đo thời gian, chọn client
+│   └── AuthTestController        GET /order/test/auth-grpc
+├── dto/AuthCallResult            elapsedMs + user
+├── service/AuthCallTestService   đo thời gian, gọi AuthGrpcClient
 └── validation/AuthTestValidator  kiểm tra X-User-Id
 
 src/main/resources/
-├── api-routes.xml                khai báo 3 route
+├── api-routes.xml                khai báo 2 route
 └── application.properties
 ```
 
@@ -124,10 +119,9 @@ src/main/resources/
 
 ## 7. Kiểm thử
 
-Unit test: 15 test, `./mvnw test -pl fd-order-service`.
+Unit test: 23 test, `./mvnw test -pl fd-order-service`.
 
 | Test | Số test | Nội dung chính |
 |---|---:|---|
-| `AuthHttpClientTest` | 6 | Với HTTP server thật thay cho auth: đọc `data`; 404 giữ mã lỗi; 5xx → 502; thiếu `data` → 502; trả lời chậm → 503 sau timeout; server tắt → 503 |
 | `AuthGrpcClientTest` | 7 | Với gRPC server in-process: đủ field và gửi `x-caller-service`; không có SĐT → `null`; `NOT_FOUND`/`INVALID_ARGUMENT` giữ mã lỗi từ trailer; không trả lời trước deadline → 503; server tắt → 503; status khác → 502 |
 | `AuthTestValidatorTest` | 2 | `X-User-Id` hợp lệ; thiếu, rỗng, sai định dạng → 401 |

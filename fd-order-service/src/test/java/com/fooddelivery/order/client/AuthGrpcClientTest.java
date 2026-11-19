@@ -24,7 +24,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.net.URI;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
@@ -74,7 +73,7 @@ class AuthGrpcClientTest {
         channel = InProcessChannelBuilder.forName(name).build();
         UserServiceGrpc.UserServiceBlockingStub stub = UserServiceGrpc.newBlockingStub(
                 ClientInterceptors.intercept(channel, new CallerServiceClientInterceptor("service-order")));
-        client = new AuthGrpcClient(stub, new AuthClientProperties(URI.create("http://unused"), TIMEOUT));
+        client = new AuthGrpcClient(stub, new AuthClientProperties(TIMEOUT));
     }
 
     @AfterEach

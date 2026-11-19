@@ -13,8 +13,7 @@ import org.springframework.grpc.server.service.GrpcService;
 
 /**
  * gRPC {@code fooddelivery.auth.v1.UserService} (contract in {@code auth/v1/user_service.proto} of fd-grpc-api), served
- * on {@code spring.grpc.server.port} for other services inside the network. The gRPC counterpart of
- * {@code InternalUserController}: same check, same service, same fields.
+ * on {@code spring.grpc.server.port} for other services inside the network, e.g. order-service.
  *
  * <p>Plays the role of the controller for gRPC: there is no API flow, so it checks the input itself with
  * {@link InternalUserValidator#checkUserId}, then maps between proto messages and {@link UserQueryService}. A

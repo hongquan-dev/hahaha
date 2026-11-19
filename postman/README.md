@@ -6,16 +6,15 @@ Mỗi API HTTP của backend có một file `.txt` chứa đúng một lệnh cU
 postman/
 ├── fd-gateway-service/      GET_gateway_health.txt
 ├── fd-auth-service/         POST_auth_register.txt, POST_auth_login.txt, GET_auth_me.txt, POST_auth_refresh.txt,
-│                            POST_auth_logout.txt, GET_auth_.well-known_jwks.json.txt, GET_auth_test_ping.txt,
-│                            GET_internal_users_{userId}.txt
-├── fd-order-service/        GET_order_health.txt, GET_order_test_auth-http.txt, GET_order_test_auth-grpc.txt
+│                            POST_auth_logout.txt, GET_auth_.well-known_jwks.json.txt
+├── fd-order-service/        GET_order_health.txt, GET_order_test_auth-grpc.txt
 ├── fd-restaurant-service/   GET_restaurant_health.txt
 ├── fd-delivery-service/     GET_delivery_health.txt
 └── fd-chat-service/         GET_chat_health.txt
 ```
 
 **Tên file:** method viết hoa + path của API, `/` đổi thành `_` vì tên file không được chứa `/`, vd.
-`POST /auth/login` → `POST_auth_login.txt`, `GET /internal/users/{userId}` → `GET_internal_users_{userId}.txt`.
+`POST /auth/login` → `POST_auth_login.txt`, `GET /auth/.well-known/jwks.json` → `GET_auth_.well-known_jwks.json.txt`.
 
 **Dùng với Postman:** mở file, chọn hết (Ctrl+A), copy, dán vào thanh URL của một request mới. Postman tự chuyển
 thành request đủ method, header, body.

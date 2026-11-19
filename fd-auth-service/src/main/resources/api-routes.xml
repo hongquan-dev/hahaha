@@ -38,19 +38,4 @@
         <path>/auth/logout</path>
         <controller>com.fooddelivery.auth.controller.AuthController</controller>
     </route>
-
-    <!-- Internal user for other services, no gateway route: validator checks the ID, UserQueryService it exists -->
-    <route>
-        <method>GET</method>
-        <path>/internal/users/{userId}</path>
-        <validator>com.fooddelivery.auth.validation.InternalUserValidator.validateGetUser</validator>
-        <controller>com.fooddelivery.auth.controller.InternalUserController</controller>
-    </route>
-
-    <!-- Test API: owner and lifetime of the access_token cookie; no body, PingService checks the token -->
-    <route>
-        <method>GET</method>
-        <path>/auth/test/ping</path>
-        <controller>com.fooddelivery.auth.controller.TestController</controller>
-    </route>
 </routes>

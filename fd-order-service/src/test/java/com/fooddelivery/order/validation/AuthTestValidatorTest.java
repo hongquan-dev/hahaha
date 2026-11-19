@@ -38,7 +38,7 @@ class AuthTestValidatorTest {
     }
 
     private static ApiRequest request(String userId) {
-        MockHttpServletRequest servletRequest = new MockHttpServletRequest("GET", "/order/test/auth-http");
+        MockHttpServletRequest servletRequest = new MockHttpServletRequest("GET", "/order/test/auth-grpc");
         if (userId != null) {
             servletRequest.addHeader(AuthTestValidator.USER_ID_HEADER, userId);
         }

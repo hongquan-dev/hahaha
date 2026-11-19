@@ -25,7 +25,7 @@ public class AuthTestValidator {
     private static final Pattern ID = Pattern.compile("^\\d{14}$");
 
     /**
-     * Validator of {@code GET /order/test/auth-http} and {@code GET /order/test/auth-grpc}.
+     * Validator of {@code GET /order/test/auth-grpc}.
      *
      * <p>Throws {@code BusinessException} 401 {@code UNAUTHENTICATED} if {@link #USER_ID_HEADER} is missing or not a
      * 14-digit ID. The gateway always sets it after checking the token, so this only happens when order-service is

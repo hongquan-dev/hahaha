@@ -7,15 +7,7 @@
         <controller>com.fooddelivery.order.controller.OrderController</controller>
     </route>
 
-    <!-- Test API: the caller from auth over HTTP; validator checks X-User-Id, AuthHttpClient maps auth's errors -->
-    <route>
-        <method>GET</method>
-        <path>/order/test/auth-http</path>
-        <validator>com.fooddelivery.order.validation.AuthTestValidator.validateCaller</validator>
-        <controller>com.fooddelivery.order.controller.AuthTestController</controller>
-    </route>
-
-    <!-- Test API: the same over gRPC; validator checks X-User-Id, AuthGrpcClient maps the gRPC statuses -->
+    <!-- Test API: the caller from auth over gRPC; validator checks X-User-Id, AuthGrpcClient maps the gRPC statuses -->
     <route>
         <method>GET</method>
         <path>/order/test/auth-grpc</path>
