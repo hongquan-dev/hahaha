@@ -1,23 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ClaudeCodeEditorTabs">
-    <option name="activeSessionId" value="f20d8c44-47c6-495b-a310-75bfedbb4ed5" />
+    <option name="activeSessionId" value="1f24e1b6-d43a-4869-a3eb-2f33b1839a6b" />
     <option name="openSessionIds">
       <list>
         <option value="67952024-761e-438f-98b2-208e39cc8818" />
-        <option value="f20d8c44-47c6-495b-a310-75bfedbb4ed5" />
+        <option value="1f24e1b6-d43a-4869-a3eb-2f33b1839a6b" />
       </list>
     </option>
     <option name="sessionPaths">
       <map>
+        <entry key="1f24e1b6-d43a-4869-a3eb-2f33b1839a6b" value="/sessions/f55a3b4d-8db5-450d-b6cc-08d6dcd5e021" />
         <entry key="67952024-761e-438f-98b2-208e39cc8818" value="/sessions/0dfe91af-b6ea-4011-b5b1-d3608aaef653" />
-        <entry key="f20d8c44-47c6-495b-a310-75bfedbb4ed5" value="/sessions/085eb5e7-5446-4def-aa21-60711cae2cfe" />
       </map>
     </option>
     <option name="sessionTitles">
       <map>
+        <entry key="1f24e1b6-d43a-4869-a3eb-2f33b1839a6b" value="Tôi là người mới tiếp cận gRPC, hãy giải thích cơ" />
         <entry key="67952024-761e-438f-98b2-208e39cc8818" value="Bỏ hết các api hiện đang có ở trong fd-auth-servic" />
-        <entry key="f20d8c44-47c6-495b-a310-75bfedbb4ed5" value="Gỡ api này đi: GET /internal/users/{userId} vì tôi" />
       </map>
     </option>
   </component>
