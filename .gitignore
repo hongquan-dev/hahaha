@@ -32,3 +32,6 @@ out/
 
 # OS
 .DS_Store
+
+# --- Local config ---
+#**/src/main/resources/application.properties

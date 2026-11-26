@@ -1,0 +1,21 @@
+# Template: copy to application.properties next to this file and fill in the CHANGE_ME / PASTE_ values
+server.port=8082
+# Only this machine reaches it, clients go through the gateway (default all addresses); deploys set SERVER_ADDRESS
+server.address=127.0.0.1
+spring.application.name=service-restaurant
+
+# PostgreSQL; the database is created once by hand (CREATE DATABASE "FD_restaurant_db"), its tables by Flyway
+spring.datasource.url=jdbc:postgresql://localhost:5432/FD_restaurant_db
+spring.datasource.username=postgres
+spring.datasource.password=CHANGE_ME
+
+# Flyway runs the missing migrations at startup, before Hibernate
+spring.flyway.locations=classpath:db/migration
+
+# Hibernate only checks that tables match the entities and refuses to start otherwise; Flyway owns the schema
+spring.jpa.hibernate.ddl-auto=validate
+# Off (default true): each transaction returns its database connection when it ends
+spring.jpa.open-in-view=false
+
+# Routes file of common-api-flow-lib, a classpath location (default api-routes.xml)
+api-flow.routes-location=api-routes.xml

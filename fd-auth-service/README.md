@@ -489,8 +489,9 @@ Mọi property `auth.*` được bind vào `config/properties/AuthProperties` l�
 - Khoá không parse được, ngắn hơn 2048 bit, hoặc private key và public key **không cùng một cặp**
   (`config/security/JwtKeyConfig`).
 
-> **Khoá RSA hiện đặt thẳng trong `application.properties`** (đã thống nhất cho giai đoạn dev). Trước khi deploy thật:
-> sinh cặp khoá mới, đọc từ secret / biến môi trường, đổi `auth.jwt.key-id`.
+> **Khoá RSA đặt trong `application.properties`**, file này không có trên git: mỗi máy tạo từ
+> `application.properties.example` và tự sinh khoá (xem mục "Tạo file cấu hình trước khi chạy" trong README gốc).
+> Khi deploy thật: đọc khoá từ secret / biến môi trường, đổi `auth.jwt.key-id`.
 
 **Sinh cặp khoá RSA** (2048 bit, private key PKCS#8, public key X.509), rồi dán phần Base64 giữa hai dòng
 `BEGIN`/`END` vào `auth.jwt.private-key` / `auth.jwt.public-key` (dòng `BEGIN`/`END` và xuống dòng được bỏ qua):

@@ -17,6 +17,46 @@ java -jar fd-auth-service/target/fd-auth-service-1.0.0.jar   # chạy jar đã b
 
 Thư viện dùng chung `food-delivery-libs` (repo riêng) phải được `mvn install` vào `~/.m2` trước.
 
+## Tạo file cấu hình trước khi chạy
+
+File `application.properties` của các service **không có trên git** (chứa mật khẩu database, khoá ký token). Git chỉ
+có file mẫu `application.properties.example` nằm cạnh chỗ của nó, trong `src/main/resources/` của từng service. Thiếu
+file thật thì service không khởi động được.
+
+1. Tạo file thật từ file mẫu, một lần sau khi clone (lệnh không ghi đè file đã có):
+
+   ```bash
+   for f in fd-*/src/main/resources/application.properties.example; do cp -n "$f" "${f%.example}"; done
+   ```
+
+   Windows: trong mỗi thư mục `fd-*/src/main/resources/`, copy `application.properties.example` thành
+   `application.properties`.
+
+2. Điền giá trị thật vào các chỗ đánh dấu:
+
+   | Service | Property | Giá trị |
+   |---|---|---|
+   | auth, order, restaurant | `spring.datasource.password` (thay `CHANGE_ME`) | Mật khẩu PostgreSQL trên máy bạn; sai user hay URL thì sửa luôn `spring.datasource.username` / `url` |
+   | auth | `auth.jwt.private-key`, `auth.jwt.public-key` (thay `PASTE_...`) | Cặp khoá RSA tự sinh bằng lệnh bên dưới |
+
+   Sinh cặp khoá RSA rồi in ra phần Base64 trên một dòng, dán vào hai property trên:
+
+   ```bash
+   openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out private.pem
+   openssl pkey -in private.pem -pubout -out public.pem
+   grep -v -- '-----' private.pem | tr -d '\n'; echo    # -> auth.jwt.private-key
+   grep -v -- '-----' public.pem | tr -d '\n'; echo     # -> auth.jwt.public-key
+   rm private.pem public.pem
+   ```
+
+   Mỗi máy dùng cặp khoá riêng cũng được: gateway lấy public key của auth qua JWKS, không cần cấu hình gì thêm.
+
+3. Các property còn lại giữ nguyên giá trị mẫu là chạy được trên máy dev. Ý nghĩa từng property có comment ngay trong
+   file; riêng `auth.*` xem thêm mục 8 của [fd-auth-service/README.md](fd-auth-service/README.md).
+
+Khi pull code mới, so file của mình với file mẫu (vd. `diff fd-auth-service/src/main/resources/application.properties{,.example}`)
+để thêm các property mới.
+
 ## Chạy gateway, auth, order và restaurant
 
 1. PostgreSQL ở `localhost:5432` có ba database, tạo một lần bằng tay (bảng do Flyway tạo khi service khởi động):

@@ -297,7 +297,9 @@ Lỗi của service nhận giữ nguyên mã: status + trailer `error-code` -> `
 
 ## 6. Điểm mở rộng và cấu hình
 
-- `application.properties` của mỗi service mô tả từng property. Nhóm chính: `auth.*` (`AuthProperties`: JWT, cookie,
+- `application.properties` của mỗi service mô tả từng property. File này không có trên git (`.gitignore`); git chỉ có
+  `application.properties.example` cùng thư mục, giá trị bí mật để trống (`CHANGE_ME`, `PASTE_...`).
+  `GrpcConventionsTest` đọc file mẫu. Nhóm chính: `auth.*` (`AuthProperties`: JWT, cookie,
   thời hạn token, origin cho phép), `auth.login.*` (`LoginThrottleProperties`), `auth.cleanup.*`
   (`CleanupProperties`, lịch chạy `auth.cleanup.cron`), `gateway.auth.*`
   (`GatewayAuthProperties`), `gateway.rate-limit.*` (`RateLimitProperties`), `api-flow.*` (thư viện).

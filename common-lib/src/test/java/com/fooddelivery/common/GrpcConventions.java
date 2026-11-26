@@ -137,7 +137,8 @@ final class GrpcConventions {
      * Rule of the ports of a service with a gRPC server: gRPC port = HTTP port + 1000, e.g. 8081 -> 9081.
      *
      * @param module     module name, for the message
-     * @param properties its {@code application.properties}
+     * @param properties its {@code application.properties.example}, the template every local
+     *                   {@code application.properties} is copied from
      */
     static List<String> checkServerPort(String module, String properties) throws IOException {
         Properties values = new Properties();
@@ -145,8 +146,9 @@ final class GrpcConventions {
         String http = values.getProperty("server.port");
         String grpc = values.getProperty("spring.grpc.server.port");
         if (http == null || grpc == null || Integer.parseInt(grpc.trim()) != Integer.parseInt(http.trim()) + 1000) {
-            return List.of(module + ": has a gRPC server, so application.properties needs spring.grpc.server.port = "
-                    + "server.port + 1000, got server.port=" + http + ", spring.grpc.server.port=" + grpc + DOC);
+            return List.of(module + ": has a gRPC server, so application.properties.example needs "
+                    + "spring.grpc.server.port = server.port + 1000, got server.port=" + http
+                    + ", spring.grpc.server.port=" + grpc + DOC);
         }
         return List.of();
     }
@@ -168,7 +170,8 @@ final class GrpcConventions {
                 problems.addAll(checkJava(slashed(main.relativize(source)), content,
                         testPath -> Files.isRegularFile(test.resolve(testPath))));
             }
-            Path properties = module.resolve("src/main/resources/application.properties");
+            // The committed template: application.properties itself is ignored by git, so a fresh clone has none
+            Path properties = module.resolve("src/main/resources/application.properties.example");
             if (hasServer && Files.isRegularFile(properties)) {
                 problems.addAll(checkServerPort(module.getFileName().toString(), Files.readString(properties)));
             }

@@ -61,6 +61,16 @@ gRPC, không có API HTTP nội bộ.
 - Thêm, sửa (method, path, body, header) hay xoá API thì thêm, sửa hay xoá file cURL tương ứng **trong cùng commit**,
   và chạy thử lệnh đó với service đang chạy.
 
+## File cấu hình: chỉ đẩy file mẫu
+
+`application.properties` của mọi service nằm trong `.gitignore` (chứa mật khẩu, khoá); git chỉ có
+`application.properties.example` cạnh nó. Cách tạo file thật: README gốc, mục "Tạo file cấu hình trước khi chạy".
+
+- Thêm, sửa, xoá property thì sửa **cả hai file trong cùng commit**: file thật để chạy thử, file mẫu để người khác có.
+- File mẫu không bao giờ chứa giá trị bí mật: thay bằng `CHANGE_ME` (giá trị gõ tay) hoặc `PASTE_...` (giá trị phải
+  sinh ra, vd. khoá), và ghi vào bảng trong README gốc cách lấy giá trị đó.
+- `.mvn/wrapper/maven-wrapper.properties` không phải cấu hình service, vẫn đẩy lên git.
+
 ## Thay đổi database: luôn qua migration
 
 Dự án nhiều người cùng làm, nên database của mọi người phải giống nhau chỉ nhờ chạy code mới nhất. Flyway tự áp dụng

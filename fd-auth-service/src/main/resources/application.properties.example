@@ -1,0 +1,76 @@
+# Template: copy to application.properties next to this file and fill in the CHANGE_ME / PASTE_ values
+server.port=8081
+# Only this machine reaches it, clients go through the gateway (default all addresses); deploys set SERVER_ADDRESS
+server.address=127.0.0.1
+spring.application.name=service-auth
+
+# Client IP from X-Forwarded-For, trusted only from internal addresses (the gateway); default none: direct connection
+server.forward-headers-strategy=native
+
+# PostgreSQL
+spring.datasource.url=jdbc:postgresql://localhost:5432/FD_auth_db
+spring.datasource.username=postgres
+spring.datasource.password=CHANGE_ME
+
+# Flyway runs the missing migrations at startup, before Hibernate; see the README to baseline an existing database
+spring.flyway.locations=classpath:db/migration
+
+# Hibernate only checks that tables match the entities and refuses to start otherwise; Flyway owns the schema
+spring.jpa.hibernate.ddl-auto=validate
+# Off (default true): each transaction returns its connection, so BCrypt in login and register holds none
+spring.jpa.open-in-view=false
+
+# Routes file of common-api-flow-lib, a classpath location (default api-routes.xml)
+api-flow.routes-location=api-routes.xml
+
+# Largest request body the API flow accepts
+api-flow.max-body-size=2MB
+
+# Paths that skip the API flow: JWKS for other services, Google/Facebook login callbacks in the provider's format
+api-flow.exclude-paths=/auth/.well-known/**,/auth/oauth2/callback/**
+# The library's own exclusions (/error, /actuator/**, /v3/api-docs/**, /swagger-ui/**...) are off (default true)
+api-flow.use-default-excludes=false
+
+# auth.* is bound to AuthProperties at startup: a missing or invalid value stops it; durations like 10s, 15m, 7d
+
+# RSA key pair (Base64 PEM body, one line, 2048 bits+) signing the access tokens; README shows how to generate one
+auth.jwt.private-key=PASTE_BASE64_PRIVATE_KEY
+auth.jwt.public-key=PASTE_BASE64_PUBLIC_KEY
+
+# "kid" of the key pair above, in every token header and the JWKS; change it whenever the key pair changes
+auth.jwt.key-id=fd-auth-dev-1
+
+# "iss" of every access token; verifiers reject any other issuer
+auth.jwt.issuer=fd-auth-service
+
+# Lifetime of an access token and its cookie (default 15m); lower it, e.g. 10s, to test expiry
+auth.jwt.access-ttl=15m
+
+# Lifetime of each refresh token, renewed by every refresh, so an unused session expires (default 7d)
+auth.refresh.idle-ttl=7d
+
+# Maximum lifetime of a session from login, never extended, at least idle-ttl (default 30d)
+auth.refresh.absolute-ttl=30d
+
+# Reuse of a replaced refresh token within this time is a tab race (409), after it a theft (default 10s)
+auth.refresh.reuse-grace=10s
+
+# Failed logins within failure-window that lock the account or identifier, even with the right password (default 10)
+auth.login.max-failures=10
+# Time over which failed logins are counted, from the first one (default 15m)
+auth.login.failure-window=15m
+# How long a lock lasts; short, since anyone can lock an account by failing on purpose (default 5m)
+auth.login.lock-duration=5m
+
+# Cleanup job of ended sessions and stale login_failures, Spring cron with seconds; "-" turns it off (default hourly)
+auth.cleanup.cron=0 0 * * * *
+# How long an ended session is kept before the cleanup job deletes it (default 7d)
+auth.cleanup.retention=7d
+# Rows, or whole sessions, deleted per statement, so no statement locks the tables long (default 500)
+auth.cleanup.batch-size=500
+
+# Secure attribute of the token cookies (default true); localhost counts as secure, so false only for a remote HTTP host
+auth.cookie.secure=true
+
+# Origins (scheme://host[:port]) allowed to send POST/PUT/PATCH/DELETE, comma-separated; others get 403
+auth.allowed-origins=http://localhost:5173

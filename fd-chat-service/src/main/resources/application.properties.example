@@ -1,0 +1,5 @@
+# Template: copy to application.properties next to this file and fill in the CHANGE_ME / PASTE_ values
+server.port=8085
+# Only this machine reaches it, clients go through the gateway (default all addresses); deploys set SERVER_ADDRESS
+server.address=127.0.0.1
+spring.application.name=service-chat
