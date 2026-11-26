@@ -1,5 +1,6 @@
 package com.fooddelivery.gateway.filter;
 
+import com.fooddelivery.dto.requestid.RequestIds;
 import com.fooddelivery.dto.response.ApiStatus;
 import com.fooddelivery.gateway.ratelimit.FixedWindowRateLimiter;
 import com.fooddelivery.gateway.ratelimit.RateLimitDecision;
@@ -71,8 +72,9 @@ public class RateLimitGatewayFilterFactory extends AbstractGatewayFilterFactory<
             return chain.filter(exchange);
         }
 
-        log.warn("[RATE_LIMIT] {} {} | client={} over the limit, retry in {}s", request.getMethod(),
-                request.getPath().value(), client, retryAfterSeconds(decision));
+        log.warn("[RATE_LIMIT] {} {} | requestId={}, client={} over the limit, retry in {}s", request.getMethod(),
+                request.getPath().value(), request.getHeaders().getFirst(RequestIds.HEADER), client,
+                retryAfterSeconds(decision));
         exchange.getResponse().getHeaders().set(HttpHeaders.RETRY_AFTER,
                 String.valueOf(retryAfterSeconds(decision)));
         return ErrorResponses.write(exchange, jsonMapper, ApiStatus.TOO_MANY_REQUESTS, "TOO_MANY_REQUESTS",

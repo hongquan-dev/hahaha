@@ -26,41 +26,51 @@ Thư viện dùng chung `food-delivery-libs` (repo riêng) phải được `mvn 
    CREATE DATABASE "FD_order_db";
    ```
 
-2. Khởi động, mỗi lệnh một terminal. Thứ tự không bắt buộc: gateway chỉ tải public key của auth ở request đầu tiên,
-   order chỉ kết nối gRPC tới auth ở lời gọi đầu tiên.
+2. Khởi động, mỗi lệnh một terminal. Thứ tự không bắt buộc: gateway chỉ tải public key của auth ở request đầu tiên.
 
    ```bash
-   ./mvnw spring-boot:run -pl fd-auth-service       # HTTP 8081 + gRPC 9081
+   ./mvnw spring-boot:run -pl fd-auth-service       # 8081
    ./mvnw spring-boot:run -pl fd-order-service      # 8083
    ./mvnw spring-boot:run -pl fd-gateway-service    # 8090
    ```
 
 3. Thử bằng Postman: mỗi API có một file cURL trong `postman/<service>/`, copy toàn bộ rồi dán vào thanh URL của
-   Postman (xem `postman/README.md`). gRPC thử bằng `grpcurl`, xem mục gRPC trong `fd-auth-service/README.md`.
+   Postman (xem `postman/README.md`).
 
 ```
 Client ──> gateway :8090 ── /auth/**  (login, register: RateLimit theo IP) ──> auth :8081
                          └─ /order/** (JwtAuth: kiểm tra token, gắn X-User-Id) ──> order :8083
-                                                                        └─ gRPC ─> auth :9081 UserService/GetUser
 ```
 
-Chi tiết từng bước và kết quả kiểm thử: [`docs/gateway-grpc-checklist.md`](docs/gateway-grpc-checklist.md).
+Mỗi response có header `X-Request-Id`; mọi dòng log của request đó, ở mọi service, có cùng ID trong `[...]` sau tên
+service (gateway ghi `requestId=` trong dòng log của nó). Khi client báo lỗi, tìm ID này trong log là thấy cả chuỗi xử
+lý.
+
+Chi tiết từng bước và kết quả kiểm thử: [`docs/gateway-grpc-checklist.md`](docs/gateway-grpc-checklist.md) (nhật ký
+giai đoạn trước; gRPC `GetUser` trong đó đã bị xoá). Việc còn lại để gRPC sau này đồng nhất:
+[`docs/grpc-hardening-checklist.md`](docs/grpc-hardening-checklist.md).
 
 ## Service Ports
 
 Client (frontend, Postman) chỉ gọi qua API Gateway `8090`; gateway chuyển `/auth/**` sang auth-service và
 `/order/**` (sau khi kiểm tra token) sang order-service. Các port còn lại là nội bộ, không được mở ra ngoài: service
-phía sau tin header `X-User-Id` do gateway gắn, và gRPC chưa có xác thực giữa các service.
+phía sau tin header `X-User-Id` do gateway gắn.
+
+Vì vậy chỉ gateway nghe trên mọi địa chỉ. Các service khác chỉ nghe trên `127.0.0.1` (`server.address`; gRPC server
+sau này cũng vậy, `spring.grpc.server.address`): máy khác trong LAN gọi thẳng `<IP>:8081` bị từ chối kết nối, còn
+gateway, các service và Postman trên **cùng máy** vẫn gọi được. Khi deploy (Docker, K8s), đặt `SERVER_ADDRESS=0.0.0.0`
+(và `SPRING_GRPC_SERVER_ADDRESS=0.0.0.0` nếu có gRPC) để các container gọi được nhau, và **không** publish các port
+này ra ngoài; chỉ publish `8090`.
 
 | Service | Port | Health check |
 |---|---:|---|
 | API Gateway | `8090` | `GET http://localhost:8090/gateway/health` |
 | Auth Service | `8081` | `GET http://localhost:8081/auth/.well-known/jwks.json` |
-| Auth Service (gRPC) | `9081` | `grpcurl -plaintext localhost:9081 grpc.health.v1.Health/Check` |
 | Restaurant Service | `8082` | `GET http://localhost:8082/restaurant/health` |
 | Order Service | `8083` | `GET http://localhost:8083/order/health` |
 | Delivery Service | `8084` | `GET http://localhost:8084/delivery/health` |
 | Chat Service | `8085` | `GET http://localhost:8085/chat/health` |
 
-Hợp đồng gRPC giữa các service (file `.proto`) nằm trong module `fd-grpc-api`, ví dụ
-`fd-grpc-api/src/main/proto/auth/v1/user_service.proto`.
+Hiện chưa có API gRPC nào. Service gọi nhau chỉ qua gRPC; hợp đồng (file `.proto`) sẽ nằm trong
+`fd-grpc-api/src/main/proto/<service>/v1/`, phần hỗ trợ dùng chung (lỗi, log, header caller) đã có sẵn trong
+`fd-grpc-api`.

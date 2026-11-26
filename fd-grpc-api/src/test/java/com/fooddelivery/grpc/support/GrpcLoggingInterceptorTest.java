@@ -2,97 +2,81 @@ package com.fooddelivery.grpc.support;
 
 import com.fooddelivery.dto.response.ApiStatus;
 import com.fooddelivery.grpc.GrpcMetadataKeys;
-import com.fooddelivery.grpc.auth.v1.GetUserRequest;
-import com.fooddelivery.grpc.auth.v1.UserResponse;
-import com.fooddelivery.grpc.auth.v1.UserServiceGrpc;
+import com.fooddelivery.grpc.test.v1.EchoRequest;
+import com.fooddelivery.grpc.test.v1.EchoResponse;
+import com.fooddelivery.grpc.test.v1.EchoServiceGrpc;
+import com.fooddelivery.grpc.testing.InProcessGrpcServer;
 import com.fooddelivery.web.exception.BusinessException;
-import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
-import io.grpc.Server;
-import io.grpc.ServerInterceptors;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.grpc.server.exception.GrpcExceptionHandlerInterceptor;
 
-import java.util.function.LongFunction;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 /**
- * Tests that {@link GrpcLoggingInterceptor} is transparent: on an in-process gRPC server where it wraps the exception
- * interceptor, as its {@code @Order} places it, calls still complete with the same response, status and
- * {@code error-code} trailer, with or without the caller header. The service is a fake {@code UserService} whose
- * answer each test sets. The log line itself is not checked.
+ * Tests that {@link GrpcLoggingInterceptor} is transparent: on {@link InProcessGrpcServer}, where it wraps the
+ * exception interceptor as its {@code @Order} places it in a running service, calls still complete with the same
+ * response, status and {@code error-code} trailer, with or without the caller header. The service is the test-only {@code EchoService}
+ * whose answer each test sets. The log line itself is not checked.
  */
 class GrpcLoggingInterceptorTest {
 
-    private static final long USER_ID = 17939477151001L;
-
-    // What the fake service does for a user ID: return a response or throw
-    private LongFunction<UserResponse> answer;
-    private Server server;
-    private ManagedChannel channel;
-    private UserServiceGrpc.UserServiceBlockingStub stub;
+    // What the fake service does with the text it receives: return a response or throw
+    private Function<String, EchoResponse> answer;
+    private InProcessGrpcServer server;
+    private EchoServiceGrpc.EchoServiceBlockingStub stub;
 
     @BeforeEach
-    void start() throws Exception {
-        String name = InProcessServerBuilder.generateName();
-        UserServiceGrpc.UserServiceImplBase service = new UserServiceGrpc.UserServiceImplBase() {
+    void start() {
+        EchoServiceGrpc.EchoServiceImplBase service = new EchoServiceGrpc.EchoServiceImplBase() {
             @Override
-            public void getUser(GetUserRequest request, StreamObserver<UserResponse> responseObserver) {
-                responseObserver.onNext(answer.apply(request.getUserId()));
+            public void echo(EchoRequest request, StreamObserver<EchoResponse> responseObserver) {
+                responseObserver.onNext(answer.apply(request.getText()));
                 responseObserver.onCompleted();
             }
         };
-        // The last interceptor runs first, so the logging interceptor is outside the exception interceptor
-        server = InProcessServerBuilder.forName(name).directExecutor()
-                .addService(ServerInterceptors.intercept(service,
-                        new GrpcExceptionHandlerInterceptor(new BusinessExceptionGrpcHandler()),
-                        new GrpcLoggingInterceptor()))
-                .build().start();
-        channel = InProcessChannelBuilder.forName(name).directExecutor().build();
-        stub = UserServiceGrpc.newBlockingStub(channel);
+        // Same interceptors and order as in a running service, the logging one outside the exception one
+        server = InProcessGrpcServer.start(service);
+        stub = EchoServiceGrpc.newBlockingStub(server.channel());
     }
 
     @AfterEach
     void stop() {
-        channel.shutdownNow();
-        server.shutdownNow();
+        server.close();
     }
 
     @Test
     void successfulCallReturnsTheResponse() {
-        answer = id -> UserResponse.newBuilder().setId(id).setUsername("quan").build();
+        answer = text -> EchoResponse.newBuilder().setText(text).build();
 
-        UserResponse response = withCaller("service-order").getUser(request());
+        EchoResponse response = withCaller("service-order").echo(request("hello"));
 
-        assertThat(response.getId()).isEqualTo(USER_ID);
-        assertThat(response.getUsername()).isEqualTo("quan");
+        assertThat(response.getText()).isEqualTo("hello");
     }
 
     @Test
     void callWithoutCallerHeaderStillCompletes() {
-        answer = id -> UserResponse.newBuilder().setId(id).build();
+        answer = text -> EchoResponse.newBuilder().setText(text).build();
 
-        assertThat(stub.getUser(request()).getId()).isEqualTo(USER_ID);
+        assertThat(stub.echo(request("hello")).getText()).isEqualTo("hello");
     }
 
     @Test
     void businessErrorKeepsItsStatusAndErrorCode() {
-        answer = id -> {
-            throw new BusinessException(ApiStatus.NOT_FOUND, "USER_NOT_FOUND", "User " + id + " not found");
+        answer = text -> {
+            throw new BusinessException(ApiStatus.NOT_FOUND, "USER_NOT_FOUND", "User " + text + " not found");
         };
 
         StatusRuntimeException e = catchThrowableOfType(StatusRuntimeException.class,
-                () -> withCaller("service-order").getUser(request()));
+                () -> withCaller("service-order").echo(request("17939477151001")));
 
         assertThat(e.getStatus().getCode()).isEqualTo(Status.Code.NOT_FOUND);
         assertThat(e.getTrailers().get(GrpcMetadataKeys.ERROR_CODE)).isEqualTo("USER_NOT_FOUND");
@@ -100,23 +84,24 @@ class GrpcLoggingInterceptorTest {
 
     @Test
     void unexpectedErrorKeepsInternalStatus() {
-        answer = id -> {
+        answer = text -> {
             throw new IllegalStateException("database is down");
         };
 
-        StatusRuntimeException e = catchThrowableOfType(StatusRuntimeException.class, () -> stub.getUser(request()));
+        StatusRuntimeException e = catchThrowableOfType(StatusRuntimeException.class,
+                () -> stub.echo(request("hello")));
 
         assertThat(e.getStatus().getCode()).isEqualTo(Status.Code.INTERNAL);
         assertThat(e.getStatus().getDescription()).isEqualTo("Internal error");
     }
 
-    private UserServiceGrpc.UserServiceBlockingStub withCaller(String caller) {
+    private EchoServiceGrpc.EchoServiceBlockingStub withCaller(String caller) {
         Metadata headers = new Metadata();
         headers.put(GrpcMetadataKeys.CALLER_SERVICE, caller);
         return stub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(headers));
     }
 
-    private static GetUserRequest request() {
-        return GetUserRequest.newBuilder().setUserId(USER_ID).build();
+    private static EchoRequest request(String text) {
+        return EchoRequest.newBuilder().setText(text).build();
     }
 }

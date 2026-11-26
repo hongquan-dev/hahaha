@@ -1,0 +1,22 @@
+// Test-only service of fd-grpc-api, so the tests of package support make real gRPC calls without depending on the
+// contract of a service. Compiled into the test classes only, never shipped in the jar.
+syntax = "proto3";
+
+package fooddelivery.test.v1;
+
+option java_package = "com.fooddelivery.grpc.test.v1";
+option java_multiple_files = true;
+option java_outer_classname = "EchoServiceProto";
+
+service EchoService {
+  // The text it receives, or the error the test makes the fake service throw
+  rpc Echo(EchoRequest) returns (EchoResponse);
+}
+
+message EchoRequest {
+  string text = 1;
+}
+
+message EchoResponse {
+  string text = 1;
+}

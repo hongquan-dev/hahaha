@@ -32,31 +32,6 @@
             <artifactId>nimbus-jose-jwt</artifactId>
             <version>${nimbus-jose-jwt.version}</version>
         </dependency>
-
-        <!-- gRPC server (UserGrpcService) on spring.grpc.server.port; version and Logback exclusion from the parent -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-grpc-server</artifactId>
-        </dependency>
-
-        <!-- Generated classes of the .proto contracts, e.g. UserServiceGrpc -->
-        <dependency>
-            <groupId>com.fooddelivery</groupId>
-            <artifactId>fd-grpc-api</artifactId>
-        </dependency>
-
-        <!-- Server reflection for grpcurl and Postman, switched by spring.grpc.server.reflection.enabled -->
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-services</artifactId>
-        </dependency>
-
-        <!-- In-memory gRPC server and channel for UserGrpcServiceTest -->
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-inprocess</artifactId>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>

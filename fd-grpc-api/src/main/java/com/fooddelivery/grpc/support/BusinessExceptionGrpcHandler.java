@@ -1,6 +1,5 @@
 package com.fooddelivery.grpc.support;
 
-import com.fooddelivery.dto.response.ApiStatus;
 import com.fooddelivery.grpc.GrpcMetadataKeys;
 import com.fooddelivery.web.exception.BusinessException;
 import io.grpc.Metadata;
@@ -16,7 +15,8 @@ import org.springframework.grpc.server.exception.GrpcExceptionHandler;
  * that runs a gRPC server; Spring gRPC calls every {@link GrpcExceptionHandler} bean at request time, for any service.
  *
  * <ul>
- *   <li>{@code BusinessException}: the gRPC code matching its HTTP status (e.g. 404 -> {@code NOT_FOUND}), its message
+ *   <li>{@code BusinessException}: the gRPC code matching its HTTP status in {@link GrpcStatuses} (e.g. 404 ->
+ *       {@code NOT_FOUND}, read back by {@link GrpcClientErrors} on the client), its message
  *       as description, and its error code in the {@link GrpcMetadataKeys#ERROR_CODE} trailer, e.g.
  *       {@code USER_NOT_FOUND}, so the client can tell errors apart as with the HTTP API. Without a code, the default
  *       code of the status, e.g. {@code NOT_FOUND}.</li>
@@ -34,24 +34,10 @@ public class BusinessExceptionGrpcHandler implements GrpcExceptionHandler {
             String code = e.getCode() == null || e.getCode().isBlank() ? e.getStatus().code() : e.getCode();
             Metadata trailers = new Metadata();
             trailers.put(GrpcMetadataKeys.ERROR_CODE, code);
-            return toGrpcStatus(e.getStatus()).withDescription(e.getMessage()).asException(trailers);
+            return Status.fromCode(GrpcStatuses.toGrpc(e.getStatus())).withDescription(e.getMessage())
+                    .asException(trailers);
         }
         log.error("[gRPC] Unexpected error", exception);
         return Status.INTERNAL.withDescription("Internal error").asException();
-    }
-
-    // Closest gRPC code for each HTTP status a BusinessException can carry; INTERNAL for the rest
-    static Status toGrpcStatus(ApiStatus status) {
-        return switch (status) {
-            case BAD_REQUEST, UNPROCESSABLE_ENTITY -> Status.INVALID_ARGUMENT;
-            case UNAUTHORIZED -> Status.UNAUTHENTICATED;
-            case FORBIDDEN -> Status.PERMISSION_DENIED;
-            case NOT_FOUND -> Status.NOT_FOUND;
-            case CONFLICT -> Status.ALREADY_EXISTS;
-            case TOO_MANY_REQUESTS -> Status.RESOURCE_EXHAUSTED;
-            case SERVICE_UNAVAILABLE -> Status.UNAVAILABLE;
-            case GATEWAY_TIMEOUT -> Status.DEADLINE_EXCEEDED;
-            default -> Status.INTERNAL;
-        };
     }
 }

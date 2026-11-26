@@ -1,0 +1,2 @@
+org.springframework.boot.EnvironmentPostProcessor=\
+com.fooddelivery.grpc.support.GrpcServerDefaultsEnvironmentPostProcessor

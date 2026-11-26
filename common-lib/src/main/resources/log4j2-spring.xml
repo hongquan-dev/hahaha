@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="WARN">
     <Properties>
-        <!-- Log interface -->
-        <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss} [${spring:spring.application.name}] %level %logger{36} - %msg%n</Property>
+        <!-- Log interface; [requestId] of RequestIdFilter (HTTP) or RequestIdServerInterceptor (gRPC), none at startup -->
+        <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss} [${spring:spring.application.name}] %notEmpty{[%X{requestId}] }%level %logger{36} - %msg%n</Property>
     </Properties>
 
     <Appenders>

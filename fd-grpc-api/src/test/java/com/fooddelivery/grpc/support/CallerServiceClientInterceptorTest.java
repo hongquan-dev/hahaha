@@ -1,9 +1,9 @@
 package com.fooddelivery.grpc.support;
 
 import com.fooddelivery.grpc.GrpcMetadataKeys;
-import com.fooddelivery.grpc.auth.v1.GetUserRequest;
-import com.fooddelivery.grpc.auth.v1.UserResponse;
-import com.fooddelivery.grpc.auth.v1.UserServiceGrpc;
+import com.fooddelivery.grpc.test.v1.EchoRequest;
+import com.fooddelivery.grpc.test.v1.EchoResponse;
+import com.fooddelivery.grpc.test.v1.EchoServiceGrpc;
 import io.grpc.ClientInterceptors;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
@@ -23,8 +23,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tests of {@link CallerServiceClientInterceptor} on an in-process gRPC server that records the
- * {@link GrpcMetadataKeys#CALLER_SERVICE} header of each call.
+ * Tests of {@link CallerServiceClientInterceptor} on an in-process gRPC server of the test-only {@code EchoService}
+ * that records the {@link GrpcMetadataKeys#CALLER_SERVICE} header of each call.
  */
 class CallerServiceClientInterceptorTest {
 
@@ -40,14 +40,14 @@ class CallerServiceClientInterceptorTest {
 
     @Test
     void everyCallCarriesTheApplicationName() throws Exception {
-        UserServiceGrpc.UserServiceBlockingStub stub = stubWith(new CallerServiceClientInterceptor("service-order"));
+        EchoServiceGrpc.EchoServiceBlockingStub stub = stubWith(new CallerServiceClientInterceptor("service-order"));
 
-        stub.getUser(GetUserRequest.newBuilder().setUserId(1).build());
+        stub.echo(EchoRequest.newBuilder().setText("hello").build());
 
         assertThat(receivedCaller).hasValue("service-order");
     }
 
-    private UserServiceGrpc.UserServiceBlockingStub stubWith(CallerServiceClientInterceptor interceptor)
+    private EchoServiceGrpc.EchoServiceBlockingStub stubWith(CallerServiceClientInterceptor interceptor)
             throws Exception {
         String name = InProcessServerBuilder.generateName();
         ServerInterceptor recorder = new ServerInterceptor() {
@@ -59,16 +59,16 @@ class CallerServiceClientInterceptorTest {
                 return next.startCall(call, headers);
             }
         };
-        UserServiceGrpc.UserServiceImplBase service = new UserServiceGrpc.UserServiceImplBase() {
+        EchoServiceGrpc.EchoServiceImplBase service = new EchoServiceGrpc.EchoServiceImplBase() {
             @Override
-            public void getUser(GetUserRequest request, StreamObserver<UserResponse> responseObserver) {
-                responseObserver.onNext(UserResponse.newBuilder().setId(request.getUserId()).build());
+            public void echo(EchoRequest request, StreamObserver<EchoResponse> responseObserver) {
+                responseObserver.onNext(EchoResponse.newBuilder().setText(request.getText()).build());
                 responseObserver.onCompleted();
             }
         };
         server = InProcessServerBuilder.forName(name).directExecutor()
                 .addService(ServerInterceptors.intercept(service, recorder)).build().start();
         channel = InProcessChannelBuilder.forName(name).directExecutor().build();
-        return UserServiceGrpc.newBlockingStub(ClientInterceptors.intercept(channel, interceptor));
+        return EchoServiceGrpc.newBlockingStub(ClientInterceptors.intercept(channel, interceptor));
     }
 }

@@ -32,17 +32,26 @@ Mọi API của service đi qua luồng của `common-api-flow-lib`, mỗi lớp
 4. **Controller**: lấy dữ liệu từ `ApiRequest`, gọi service, trả `ResponseHandler.generateResponse(...)`.
 5. **Service**: logic nghiệp vụ và mọi kiểm tra cần DB (trùng, tồn tại, trạng thái), ném `BusinessException` khi vi phạm.
 
+## gRPC giữa các service
+
+Service gọi nhau **chỉ qua gRPC** (không có API HTTP nội bộ). Thêm hoặc sửa một API gRPC, dù là cái đầu tiên: **đọc
+hết và làm đúng [docs/grpc-conventions.md](docs/grpc-conventions.md)** (thứ tự các bước, code mẫu từng file, tài
+liệu cần cập nhật, cách kiểm tra); không tự nghĩ cách khác. Phần chung (lỗi, log, header caller, deadline mặc định,
+cấu hình an toàn của server) đã có trong `fd-grpc-api`, không viết lại. `GrpcConventionsTest` (common-lib) fail nếu
+`.proto` hay class gRPC sai quy ước: sửa code cho đúng, không sửa test.
+
 ## cURL cho mọi API HTTP
 
-Mỗi API HTTP của backend (kể cả health check và API nội bộ `/internal/**`) có một file cURL để thử nhanh bằng Postman.
+Mỗi API HTTP của backend (kể cả health check) có một file cURL để thử nhanh bằng Postman. Service gọi nhau chỉ qua
+gRPC, không có API HTTP nội bộ.
 
 - Mỗi service một thư mục `postman/<module>/`. Tên file là **method viết hoa + path như trong `api-routes.xml` /
   controller, `/` đổi thành `_`** (tên file không được chứa `/`), vd. `POST /auth/login` -> `POST_auth_login.txt`,
   `GET /auth/.well-known/jwks.json` -> `GET_auth_.well-known_jwks.json.txt`. Cách dùng và bảng giá trị giả:
   `postman/README.md`.
 - File chỉ chứa **đúng một lệnh cURL**, không comment hay chữ nào khác: chọn hết, copy, dán vào thanh URL của Postman.
-- URL theo đường client thật: API công khai qua gateway `http://localhost:8090`; API nội bộ và service chưa có route ở
-  gateway gọi thẳng cổng của service.
+- URL theo đường client thật: API công khai qua gateway `http://localhost:8090`; health check và service chưa có route
+  ở gateway gọi thẳng cổng của service.
 - Body, cookie, ID cần dữ liệu thật thì điền giá trị giả dễ nhận ra và có trong bảng của `postman/README.md`, vd.
   `PASTE_ACCESS_TOKEN`, ID mẫu `17939522301001`.
 - Thêm, sửa (method, path, body, header) hay xoá API thì thêm, sửa hay xoá file cURL tương ứng **trong cùng commit**,
@@ -73,7 +82,7 @@ Code chỉ được coi là xong khi có test chứng minh nó chạy đúng. Á
 
 - **Có test tương ứng:** mỗi class có logic (service, validator, controller, client, filter, interceptor, util,
   exception handler, config có điều kiện, compact constructor có kiểm tra...) có class test cùng package trong
-  `src/test/java`, tên `<TênClass>Test`, vd. `UserQueryService` -> `UserQueryServiceTest`. Không bắt buộc với record/DTO
+  `src/test/java`, tên `<TênClass>Test`, vd. `LoginThrottleService` -> `LoginThrottleServiceTest`. Không bắt buộc với record/DTO
   không có logic, `*Application`, config chỉ khai báo bean đơn giản.
 - **Thêm code:** viết test trong **cùng commit**, phủ đường đi thành công, từng lỗi (`BusinessException` với đúng status
   và mã lỗi), trường hợp biên và ngữ nghĩa `null` được ghi trong Javadoc/comment.
@@ -84,7 +93,8 @@ Code chỉ được coi là xong khi có test chứng minh nó chạy đúng. Á
   annotation, vd. `@Disabled("BUG: ...")`, và phải báo lại cho người dùng.
 - **Unit test không dùng tài nguyên thật:** repository mock bằng Mockito, HTTP server phụ thuộc thay bằng
   `com.sun.net.httpserver.HttpServer` cục bộ, gRPC bằng server in-process (`grpc-inprocess`), thời gian bằng `Clock` cố
-  định. Ví dụ: `AuthServiceLoginTest`, `JwksKeyProviderTest`, `AuthGrpcClientTest`, `UserGrpcServiceTest`.
+  định. Ví dụ: `AuthServiceLoginTest`, `JwksKeyProviderTest`, `GrpcLoggingInterceptorTest`,
+  `CallerServiceClientInterceptorTest`.
 - **Trước khi báo xong hoặc commit:** chạy `./mvnw test -pl <module>` cho mọi module bị ảnh hưởng (hoặc `./mvnw clean
   install` khi đổi module dùng chung như `common-lib`, `fd-grpc-api`); tất cả phải pass. Báo lại số test đã chạy, và
   nói rõ nếu có phần chưa có test.

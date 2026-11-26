@@ -19,25 +19,6 @@
             <groupId>com.fooddelivery</groupId>
             <artifactId>common-lib</artifactId>
         </dependency>
-
-        <!-- Generated classes of the .proto contracts, e.g. UserServiceGrpc.UserServiceBlockingStub -->
-        <dependency>
-            <groupId>com.fooddelivery</groupId>
-            <artifactId>fd-grpc-api</artifactId>
-        </dependency>
-
-        <!-- gRPC client: channels and @ImportGrpcClients stubs; version and Logback exclusion from the parent -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-grpc-client</artifactId>
-        </dependency>
-
-        <!-- In-memory gRPC server and channel for AuthGrpcClientTest -->
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-inprocess</artifactId>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>

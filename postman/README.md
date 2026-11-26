@@ -7,7 +7,7 @@ postman/
 ├── fd-gateway-service/      GET_gateway_health.txt
 ├── fd-auth-service/         POST_auth_register.txt, POST_auth_login.txt, GET_auth_me.txt, POST_auth_refresh.txt,
 │                            POST_auth_logout.txt, GET_auth_.well-known_jwks.json.txt
-├── fd-order-service/        GET_order_health.txt, GET_order_test_auth-grpc.txt
+├── fd-order-service/        GET_order_health.txt
 ├── fd-restaurant-service/   GET_restaurant_health.txt
 ├── fd-delivery-service/     GET_delivery_health.txt
 └── fd-chat-service/         GET_chat_health.txt
@@ -30,5 +30,6 @@ thành request đủ method, header, body.
 
 Đã login bằng Postman thì Postman tự lưu và gửi cookie: có thể xoá header `Cookie` trong request thay vì dán token.
 
-**URL:** API công khai đi qua gateway `http://localhost:8090`, như frontend. API nội bộ (`/internal/**`) và service
-chưa có route ở gateway (restaurant, delivery, chat) gọi thẳng cổng của service.
+**URL:** API công khai đi qua gateway `http://localhost:8090`, như frontend. Health check và service chưa có route ở
+gateway (restaurant, delivery, chat) gọi thẳng cổng của service, chỉ được từ chính máy chạy service (cổng nghe trên
+`127.0.0.1`). Không có API HTTP nội bộ: service gọi nhau chỉ qua gRPC.

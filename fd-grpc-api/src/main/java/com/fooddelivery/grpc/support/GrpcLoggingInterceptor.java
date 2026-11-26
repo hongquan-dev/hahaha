@@ -14,10 +14,12 @@ import org.springframework.grpc.server.GlobalServerInterceptor;
 import org.springframework.grpc.server.exception.GrpcExceptionHandlerInterceptor;
 
 /**
- * Logs one line per gRPC call when it ends: method, calling service, status and duration, e.g.
- * {@code [gRPC] fooddelivery.auth.v1.UserService/GetUser | caller=service-order, status=NOT_FOUND (User 17000000001000
- * not found), 3ms}. The caller comes from the {@link GrpcMetadataKeys#CALLER_SERVICE} header, {@code null} if absent
- * (e.g. grpcurl).
+ * Logs one line per gRPC call when it ends: method, calling service, request ID, status and duration, e.g.
+ * {@code [gRPC] fooddelivery.restaurant.v1.RestaurantService/GetRestaurant | caller=service-order,
+ * requestId=3f2a9c1e-7b4d-4e0a-9f1c-2d6e8b5a7c30, status=NOT_FOUND (Restaurant 17000000001002 not found), 3ms}. The
+ * caller comes from the {@link GrpcMetadataKeys#CALLER_SERVICE} header, {@code null} if absent (e.g. grpcurl); the
+ * request ID from {@link GrpcMetadataKeys#REQUEST_ID}, always set by {@link RequestIdServerInterceptor} outside this
+ * one, as the close may run on a thread without it in the {@code ThreadContext}.
  *
  * <p>Registered by {@link GrpcSupportAutoConfiguration} and applied to every gRPC service of the application
  * ({@code @GlobalServerInterceptor}). Ordered just before {@link GrpcExceptionHandlerInterceptor}, i.e. outside it: that
@@ -36,11 +38,13 @@ public class GrpcLoggingInterceptor implements ServerInterceptor {
         long start = System.nanoTime();
         String method = call.getMethodDescriptor().getFullMethodName();
         String caller = headers.get(GrpcMetadataKeys.CALLER_SERVICE);
+        String requestId = headers.get(GrpcMetadataKeys.REQUEST_ID);
         ServerCall<ReqT, RespT> logged = new ForwardingServerCall.SimpleForwardingServerCall<>(call) {
             @Override
             public void close(Status status, Metadata trailers) {
                 long millis = (System.nanoTime() - start) / 1_000_000;
-                log.info("[gRPC] {} | caller={}, status={}{}, {}ms", method, caller, status.getCode(),
+                log.info("[gRPC] {} | caller={}, requestId={}, status={}{}, {}ms", method, caller, requestId,
+                        status.getCode(),
                         status.getDescription() == null ? "" : " (" + status.getDescription() + ")", millis);
                 super.close(status, trailers);
             }

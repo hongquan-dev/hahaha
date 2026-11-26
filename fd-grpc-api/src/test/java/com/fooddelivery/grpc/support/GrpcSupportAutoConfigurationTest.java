@@ -15,6 +15,8 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.Duration;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -44,6 +46,9 @@ class GrpcSupportAutoConfigurationTest {
             assertThat(context).hasSingleBean(BusinessExceptionGrpcHandler.class);
             assertThat(context).hasSingleBean(GrpcLoggingInterceptor.class);
             assertThat(context).hasSingleBean(CallerServiceClientInterceptor.class);
+            assertThat(context).hasSingleBean(DefaultDeadlineClientInterceptor.class);
+            assertThat(context).hasSingleBean(RequestIdServerInterceptor.class);
+            assertThat(context).hasSingleBean(RequestIdClientInterceptor.class);
         });
     }
 
@@ -53,6 +58,9 @@ class GrpcSupportAutoConfigurationTest {
             assertThat(context).hasSingleBean(BusinessExceptionGrpcHandler.class);
             assertThat(context).hasSingleBean(GrpcLoggingInterceptor.class);
             assertThat(context).doesNotHaveBean(CallerServiceClientInterceptor.class);
+            assertThat(context).doesNotHaveBean(DefaultDeadlineClientInterceptor.class);
+            assertThat(context).doesNotHaveBean(RequestIdClientInterceptor.class);
+            assertThat(context).hasSingleBean(RequestIdServerInterceptor.class);
         });
     }
 
@@ -61,8 +69,27 @@ class GrpcSupportAutoConfigurationTest {
         runner.withClassLoader(new FilteredClassLoader(SERVER_AUTOCONFIGURATION)).run(context -> {
             assertThat(context).doesNotHaveBean(BusinessExceptionGrpcHandler.class);
             assertThat(context).doesNotHaveBean(GrpcLoggingInterceptor.class);
+            assertThat(context).doesNotHaveBean(RequestIdServerInterceptor.class);
             assertThat(context).hasSingleBean(CallerServiceClientInterceptor.class);
+            assertThat(context).hasSingleBean(DefaultDeadlineClientInterceptor.class);
+            assertThat(context).hasSingleBean(RequestIdClientInterceptor.class);
         });
+    }
+
+    @Test
+    void defaultDeadlineIsTwoSecondsUnlessConfigured() {
+        runner.run(context -> assertThat(context.getBean(GrpcClientProperties.class).defaultDeadline())
+                .isEqualTo(Duration.ofSeconds(2)));
+        runner.withPropertyValues("fooddelivery.grpc.client.default-deadline=500ms")
+                .run(context -> assertThat(context.getBean(GrpcClientProperties.class).defaultDeadline())
+                        .isEqualTo(Duration.ofMillis(500)));
+    }
+
+    @Test
+    void invalidDefaultDeadlineStopsTheService() {
+        runner.withPropertyValues("fooddelivery.grpc.client.default-deadline=0s")
+                .run(context -> assertThat(context).hasFailed().getFailure()
+                        .hasStackTraceContaining("fooddelivery.grpc.client.default-deadline must be positive"));
     }
 
     @Test

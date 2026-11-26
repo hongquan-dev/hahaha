@@ -18,5 +18,10 @@ public final class GrpcMetadataKeys {
     public static final Metadata.Key<String> CALLER_SERVICE =
             Metadata.Key.of("x-caller-service", Metadata.ASCII_STRING_MARSHALLER);
 
+    // Header of every call with the ID of the request being handled, e.g. "3f2a9c1e-7b4d-4e0a-9f1c-2d6e8b5a7c30", so
+    // the log lines of every service it went through share it. Same name as the HTTP header of the gateway
+    public static final Metadata.Key<String> REQUEST_ID =
+            Metadata.Key.of("x-request-id", Metadata.ASCII_STRING_MARSHALLER);
+
     private GrpcMetadataKeys() {}
 }

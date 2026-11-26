@@ -2,8 +2,7 @@
 
 Service quản lý **đơn hàng** của ứng dụng giao đồ ăn. Chạy ở port `8083`, client gọi qua gateway (`8090`).
 
-Hiện mới có nền tảng (API flow, database, gọi sang auth-service) và một API test gọi sang auth-service qua gRPC; nghiệp
-vụ đơn hàng chưa làm.
+Hiện mới có nền tảng (API flow, database) và health check; nghiệp vụ đơn hàng chưa làm.
 
 ---
 
@@ -19,8 +18,6 @@ vụ đơn hàng chưa làm.
 ./mvnw test -pl fd-order-service
 ```
 
-Order khởi động được khi auth-service chưa chạy: kênh gRPC chỉ kết nối ở lời gọi đầu tiên.
-
 ---
 
 ## 2. Danh sách API
@@ -28,20 +25,6 @@ Order khởi động được khi auth-service chưa chạy: kênh gRPC chỉ k�
 | Method | Path | Thành công | Mô tả |
 |---|---|---|---|
 | `GET` | `/order/health` | 200 + text | Health check, không cần token |
-| `GET` | `/order/test/auth-grpc` | 200 + `AuthCallResult` | User đang đăng nhập, lấy từ auth-service qua **gRPC** |
-
-```json
-{
-  "success": true, "status": 200, "code": "SUCCESS",
-  "data": {
-    "elapsedMs": 4,
-    "user": { "id": 17947973411001, "username": "p0test_97341", "phoneNumber": "+84994797341",
-              "role": "CUSTOMER", "active": true }
-  }
-}
-```
-
-`elapsedMs` là thời gian của riêng lời gọi gRPC sang auth-service.
 
 cURL từng API (copy, dán vào thanh URL của Postman): [`postman/fd-order-service/`](../postman/fd-order-service/).
 
@@ -50,21 +33,17 @@ cURL từng API (copy, dán vào thanh URL của Postman): [`postman/fd-order-se
 ## 3. Luồng xử lý
 
 ```
-Client ─> gateway :8090  JwtAuth: kiểm tra cookie access_token (401/503 nếu sai), xoá X-User-Id client gửi,
-          │              gắn X-User-Id / X-User-Role từ token
+Client ─> gateway :8090  JwtAuth (trừ /order/health): kiểm tra cookie access_token (401/503 nếu sai), xoá
+          │              X-User-Id client gửi, gắn X-User-Id / X-User-Role từ token
           ▼
 order :8083
-  ├─ api-routes.xml         API chưa khai báo                       → 404 API_NOT_FOUND
-  ├─ AuthTestValidator      thiếu / sai X-User-Id (gọi bỏ qua gateway) → 401 UNAUTHENTICATED
-  ├─ AuthTestController     lấy X-User-Id, gọi service
-  └─ AuthCallTestService    đo thời gian, gọi AuthGrpcClient
-       └─ AuthGrpcClient    stub → gRPC :9081 UserService/GetUser (deadline mỗi lời gọi)
+  ├─ api-routes.xml         API chưa khai báo → 404 API_NOT_FOUND
+  └─ OrderController        GET /order/health
 ```
 
-Order **không** đọc token: nó tin `X-User-Id` của gateway. Vì vậy port 8083 không được mở ra ngoài.
-
-Protobuf và status gRPC chỉ nằm trong `AuthGrpcClient`: phần còn lại của order chỉ thấy `AuthUser` và
-`BusinessException`.
+Order **không** đọc token: API cần người dùng sẽ tin `X-User-Id` của gateway. Vì vậy port 8083 không được mở ra
+ngoài: order chỉ nghe trên `127.0.0.1` (`server.address`), máy khác gọi thẳng `<IP>:8083` với `X-User-Id` tự điền bị
+từ chối kết nối.
 
 ---
 
@@ -72,11 +51,9 @@ Protobuf và status gRPC chỉ nằm trong `AuthGrpcClient`: phần còn lại c
 
 | HTTP | `code` | Khi nào |
 |---:|---|---|
-| 401 | `UNAUTHENTICATED` | Thiếu/sai token (gateway trả), hoặc gọi thẳng order không có `X-User-Id` |
-| 401 | `TOKEN_EXPIRED` | Token hết hạn (gateway trả); client refresh rồi gọi lại |
-| 404 | `USER_NOT_FOUND` | auth-service không có user này (gRPC `NOT_FOUND` + trailer `error-code`) |
-| 502 | `AUTH_CALL_FAILED` | auth-service trả status gRPC khác (vd. `INTERNAL`) |
-| 503 | `AUTH_UNAVAILABLE` | auth-service không kết nối được hoặc quá `services.auth.timeout` (2s) |
+| 404 | `API_NOT_FOUND` | Method + path chưa khai báo trong `api-routes.xml` |
+| 401 | `UNAUTHENTICATED` | (gateway) thiếu/sai token ở API cần đăng nhập |
+| 401 | `TOKEN_EXPIRED` | (gateway) token hết hạn; client refresh rồi gọi lại |
 | 503 | `AUTH_UNAVAILABLE` | (gateway) chưa từng lấy được public key của auth-service |
 
 ---
@@ -85,8 +62,7 @@ Protobuf và status gRPC chỉ nằm trong `AuthGrpcClient`: phần còn lại c
 
 | Property | Giá trị | Ý nghĩa |
 |---|---|---|
-| `services.auth.timeout` | `2s` (mặc định) | Deadline của mỗi lời gọi gRPC sang auth-service |
-| `spring.grpc.client.channel.auth.target` | `static://localhost:9081` | Địa chỉ kênh gRPC `auth` |
+| `server.address` | `127.0.0.1` | Chỉ máy này gọi được; client đi qua gateway. Deploy: `SERVER_ADDRESS=0.0.0.0`, không publish port |
 | `spring.datasource.url` | `jdbc:postgresql://localhost:5432/FD_order_db` | Database của order |
 
 ---
@@ -95,23 +71,11 @@ Protobuf và status gRPC chỉ nằm trong `AuthGrpcClient`: phần còn lại c
 
 ```
 src/main/java/com/fooddelivery/order/
-├── OrderApplication.java         entry point, @ConfigurationPropertiesScan
-├── client/
-│   ├── AuthGrpcClient            gọi auth qua gRPC (bọc stub), ánh xạ status thành BusinessException
-│   └── AuthUser                  user trả về
-│                                 (header x-caller-service do CallerServiceClientInterceptor của fd-grpc-api gắn)
-├── config/
-│   ├── AuthClientProperties      bind services.auth.timeout
-│   └── GrpcClientConfig          @ImportGrpcClients: tạo bean UserServiceBlockingStub trên kênh "auth"
-├── controller/
-│   ├── OrderController           GET /order/health
-│   └── AuthTestController        GET /order/test/auth-grpc
-├── dto/AuthCallResult            elapsedMs + user
-├── service/AuthCallTestService   đo thời gian, gọi AuthGrpcClient
-└── validation/AuthTestValidator  kiểm tra X-User-Id
+├── OrderApplication.java         entry point
+└── controller/OrderController    GET /order/health
 
 src/main/resources/
-├── api-routes.xml                khai báo 2 route
+├── api-routes.xml                khai báo 1 route
 └── application.properties
 ```
 
@@ -119,9 +83,5 @@ src/main/resources/
 
 ## 7. Kiểm thử
 
-Unit test: 23 test, `./mvnw test -pl fd-order-service`.
-
-| Test | Số test | Nội dung chính |
-|---|---:|---|
-| `AuthGrpcClientTest` | 7 | Với gRPC server in-process: đủ field và gửi `x-caller-service`; không có SĐT → `null`; `NOT_FOUND`/`INVALID_ARGUMENT` giữ mã lỗi từ trailer; không trả lời trước deadline → 503; server tắt → 503; status khác → 502 |
-| `AuthTestValidatorTest` | 2 | `X-User-Id` hợp lệ; thiếu, rỗng, sai định dạng → 401 |
+Chưa có unit test: `OrderController` chỉ trả text cố định (không cần test theo `CLAUDE.md`). Thử bằng file cURL trong
+`postman/fd-order-service/`.

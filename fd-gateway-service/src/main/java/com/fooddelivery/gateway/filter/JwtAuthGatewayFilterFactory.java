@@ -1,5 +1,6 @@
 package com.fooddelivery.gateway.filter;
 
+import com.fooddelivery.dto.requestid.RequestIds;
 import com.fooddelivery.dto.response.ApiStatus;
 import com.fooddelivery.gateway.auth.AccessTokenVerifier;
 import com.fooddelivery.gateway.auth.GatewayAuthProperties;
@@ -88,8 +89,9 @@ public class JwtAuthGatewayFilterFactory extends AbstractGatewayFilterFactory<Jw
         }
 
         return verifier.verify(readToken(request)).flatMap(result -> {
-            log.info("[AUTH] {} {} | result={}, userId={}", request.getMethod(), request.getPath().value(),
-                    result.status(), result.userId());
+            log.info("[AUTH] {} {} | requestId={}, result={}, userId={}", request.getMethod(),
+                    request.getPath().value(), request.getHeaders().getFirst(RequestIds.HEADER), result.status(),
+                    result.userId());
             return switch (result.status()) {
                 case VALID -> {
                     forwarded.header(USER_ID_HEADER, String.valueOf(result.userId()));
