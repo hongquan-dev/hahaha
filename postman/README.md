@@ -8,7 +8,8 @@ postman/
 ├── fd-auth-service/         POST_auth_register.txt, POST_auth_login.txt, GET_auth_me.txt, POST_auth_refresh.txt,
 │                            POST_auth_logout.txt, GET_auth_.well-known_jwks.json.txt
 ├── fd-order-service/        GET_order_health.txt
-├── fd-restaurant-service/   GET_restaurant_health.txt
+├── fd-restaurant-service/   GET_restaurant_health.txt, POST_restaurant_restaurants.txt,
+│                            GET_restaurant_restaurants_me.txt
 ├── fd-delivery-service/     GET_delivery_health.txt
 └── fd-chat-service/         GET_chat_health.txt
 ```
@@ -27,9 +28,21 @@ thành request đủ method, header, body.
 | `PASTE_REFRESH_TOKEN` | Cookie `refresh_token` nhận được khi login |
 | `17939522301001` | ID thật của một user |
 | `quan.nguyen`, `Abc@12345`, `quan.nguyen@example.com`, `0912345678` | Tài khoản muốn đăng ký / đăng nhập |
+| `Phở Hà Nội`, `12 Lý Thái Tổ, Hoàn Kiếm, Hà Nội` | Thông tin nhà hàng muốn tạo |
 
 Đã login bằng Postman thì Postman tự lưu và gửi cookie: có thể xoá header `Cookie` trong request thay vì dán token.
 
 **URL:** API công khai đi qua gateway `http://localhost:8090`, như frontend. Health check và service chưa có route ở
-gateway (restaurant, delivery, chat) gọi thẳng cổng của service, chỉ được từ chính máy chạy service (cổng nghe trên
+gateway (delivery, chat) gọi thẳng cổng của service, chỉ được từ chính máy chạy service (cổng nghe trên
 `127.0.0.1`). Không có API HTTP nội bộ: service gọi nhau chỉ qua gRPC.
+
+**Tài khoản có role khác `CUSTOMER`:** đăng ký luôn ra `CUSTOMER`, chưa có API cấp role. Để thử API của chủ quán
+(`POST_restaurant_restaurants.txt`), đăng ký một tài khoản bằng `POST_auth_register.txt`, đổi role trong database
+`FD_auth_db`, rồi **đăng nhập lại** (token cũ vẫn mang role cũ):
+
+```sql
+UPDATE users SET role = 'RESTAURANT_OWNER' WHERE username = 'quan.nguyen';
+```
+
+Role hợp lệ: `CUSTOMER`, `RESTAURANT_OWNER`, `DRIVER`, `ADMIN` (`UserRole` của common-dto-lib). Đây là dữ liệu thử của
+riêng máy mình, không viết thành migration.

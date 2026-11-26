@@ -9,6 +9,7 @@ import com.fooddelivery.auth.repository.UserRepository;
 import com.fooddelivery.auth.service.token.TokenService;
 import com.fooddelivery.web.exception.BusinessException;
 import com.fooddelivery.dto.response.ApiStatus;
+import com.fooddelivery.dto.auth.UserRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -56,7 +57,7 @@ class SessionServiceTest {
                 List.of("http://localhost:5173"));
         sessionService = new SessionService(refreshTokenRepository, userRepository, tokenService, properties,
                 Clock.fixed(NOW, ZoneOffset.UTC));
-        user = new User(USER_ID, "quan", "hash", "quan@test.com", "+84912345678", "CUSTOMER");
+        user = new User(USER_ID, "quan", "hash", "quan@test.com", "+84912345678", UserRole.CUSTOMER);
 
         when(tokenService.hash(RAW)).thenReturn(HASH);
         when(tokenService.hash("next-raw")).thenReturn("next-hash");

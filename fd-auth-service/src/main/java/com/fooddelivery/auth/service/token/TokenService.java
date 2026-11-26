@@ -92,7 +92,7 @@ public class TokenService {
         JWTClaimsSet claims = new JWTClaimsSet.Builder()
                 .issuer(issuer)
                 .subject(String.valueOf(user.getId()))
-                .claim(ROLE_CLAIM, user.getRole())
+                .claim(ROLE_CLAIM, user.getRole().name())
                 .issueTime(Date.from(now))
                 .expirationTime(Date.from(now.plus(accessTtl)))
                 .jwtID(UUID.randomUUID().toString())

@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
  * @param username    lowercase
  * @param email       lowercase
  * @param phoneNumber as {@code +84xxxxxxxxx}
- * @param role        e.g. {@code CUSTOMER}
+ * @param role        name of a {@code UserRole}, e.g. {@code CUSTOMER}; the frontend picks the screen to show from it
  * @param active      {@code false} if the account is locked
  * @param createdAt   server local time
  */
@@ -25,7 +25,7 @@ public record UserDto(
         LocalDateTime createdAt
 ) {
     public static UserDto from(User user) {
-        return new UserDto(user.getId(), user.getUsername(), user.getEmail(), user.getPhoneNumber(), user.getRole(),
-                user.isActive(), user.getCreatedAt());
+        return new UserDto(user.getId(), user.getUsername(), user.getEmail(), user.getPhoneNumber(),
+                user.getRole().name(), user.isActive(), user.getCreatedAt());
     }
 }

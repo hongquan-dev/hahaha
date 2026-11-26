@@ -11,6 +11,7 @@ import com.fooddelivery.dto.response.FieldErrorDetail;
 import com.fooddelivery.id.entity.EntityType;
 import com.fooddelivery.id.entity.IdUtils;
 import com.fooddelivery.web.exception.BusinessException;
+import com.fooddelivery.dto.auth.UserRole;
 import org.hibernate.exception.ConstraintViolationException;
 import org.hibernate.exception.ConstraintViolationException.ConstraintKind;
 import org.junit.jupiter.api.BeforeEach;
@@ -92,7 +93,7 @@ class AuthServiceRegisterTest {
         UserDto result = authService.register(REQUEST);
 
         User saved = savedUser();
-        assertThat(saved.getRole()).isEqualTo("CUSTOMER");
+        assertThat(saved.getRole()).isEqualTo(UserRole.CUSTOMER);
         assertThat(saved.isActive()).isTrue();
         assertThat(IdUtils.decodeObjectType(saved.getId())).isEqualTo(EntityType.USER);
         assertThat(result.role()).isEqualTo("CUSTOMER");

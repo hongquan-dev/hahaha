@@ -2,6 +2,7 @@ package com.fooddelivery.auth.service.token;
 
 import com.fooddelivery.auth.common.model.User;
 import com.fooddelivery.auth.config.properties.AuthProperties;
+import com.fooddelivery.dto.auth.UserRole;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.MACSigner;
@@ -38,7 +39,7 @@ class TokenServiceTest {
     private static final Instant NOW = Instant.parse("2026-11-06T08:00:00Z");
 
     private static final User USER = new User(17939477151001L, "quan", "hash", "quan@test.com", "+84912345678",
-            "CUSTOMER");
+            UserRole.CUSTOMER);
 
     // Generated once: RSA key generation takes a noticeable fraction of a second
     private static RSAKey key;

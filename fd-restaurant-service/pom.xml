@@ -14,9 +14,10 @@
     <description>Restaurant Management Service</description>
 
     <dependencies>
+        <!-- Web, API flow, Log4j2, JPA, PostgreSQL, Flyway (database FD_restaurant_db); version from the parent pom -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webmvc</artifactId>
+            <groupId>com.fooddelivery</groupId>
+            <artifactId>common-lib</artifactId>
         </dependency>
     </dependencies>
 

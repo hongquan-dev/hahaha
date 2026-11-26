@@ -10,6 +10,7 @@ import com.fooddelivery.auth.service.token.AccessTokenVerification;
 import com.fooddelivery.auth.service.token.TokenService;
 import com.fooddelivery.web.exception.BusinessException;
 import com.fooddelivery.dto.response.ApiStatus;
+import com.fooddelivery.dto.auth.UserRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -54,7 +55,7 @@ class AuthServiceLoginTest {
     void setUp() {
         when(passwordEncoder.encode(anyString())).thenReturn(DUMMY_HASH);
         authService = new AuthService(userRepository, passwordEncoder, sessionService, tokenService, loginThrottle);
-        user = new User(17939477151001L, "quan", "$2a$10$real", "quan@gmail.com", "+84912345678", "CUSTOMER");
+        user = new User(17939477151001L, "quan", "$2a$10$real", "quan@gmail.com", "+84912345678", UserRole.CUSTOMER);
         when(loginThrottle.keyFor(eq(user.getId()), anyString())).thenReturn(ACCOUNT_KEY);
         when(loginThrottle.keyFor(isNull(), anyString())).thenReturn(TYPED_KEY);
         when(passwordEncoder.matches("Abc@12345", "$2a$10$real")).thenReturn(true);
@@ -85,7 +86,7 @@ class AuthServiceLoginTest {
 
     @Test
     void phoneLikeIdentifierFallsBackToUsername() {
-        User digitsUser = new User(2L, "0912345678", "$2a$10$real", "d@test.com", "+84987654321", "CUSTOMER");
+        User digitsUser = new User(2L, "0912345678", "$2a$10$real", "d@test.com", "+84987654321", UserRole.CUSTOMER);
         when(userRepository.findByUsername("0912345678")).thenReturn(Optional.of(digitsUser));
 
         assertThat(authService.login(new LoginRequest("0912345678", "Abc@12345"), null, "ip").user().id())

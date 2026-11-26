@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes>
+    <!-- Health check in plain text, public at the gateway (gateway.auth.public-paths) -->
+    <route>
+        <method>GET</method>
+        <path>/restaurant/health</path>
+        <controller>com.fooddelivery.restaurant.controller.RestaurantController</controller>
+    </route>
+
+    <!-- Restaurant of the caller: owners only, schema structure, validator values, RestaurantService one per owner -->
+    <route>
+        <method>POST</method>
+        <path>/restaurant/restaurants</path>
+        <roles>RESTAURANT_OWNER</roles>
+        <schema>schemas/create-restaurant.json</schema>
+        <validator>com.fooddelivery.restaurant.validation.RestaurantValidator.validateCreate</validator>
+        <controller>com.fooddelivery.restaurant.controller.RestaurantController</controller>
+    </route>
+
+    <!-- Restaurant of the caller, 404 if none yet: owners only, no body; RestaurantService looks it up by owner -->
+    <route>
+        <method>GET</method>
+        <path>/restaurant/restaurants/me</path>
+        <roles>RESTAURANT_OWNER</roles>
+        <controller>com.fooddelivery.restaurant.controller.RestaurantController</controller>
+    </route>
+</routes>

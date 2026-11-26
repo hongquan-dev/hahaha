@@ -26,11 +26,15 @@ chạy (gateway, đăng nhập, gọi giữa service), database, điểm mở r�
 Mọi API của service đi qua luồng của `common-api-flow-lib`, mỗi lớp chỉ làm đúng phần của nó:
 
 1. **`api-routes.xml`**: API phải được khai báo (method + path + controller), nếu không bị chặn với 404 `API_NOT_FOUND`.
-2. **JSON Schema** (`schemas/*.json`): cấu trúc body: đủ field, đúng kiểu, không có field lạ -> 400 `INVALID_REQUEST_BODY`.
-3. **Validator** (`validation/*Validator`): giá trị từng field: bắt buộc, không rỗng, đúng định dạng. **Không truy vấn DB.**
+2. **Role** (`<roles>` của route, tên trong `UserRole`): API cần đăng nhập khai báo role được gọi; thiếu user -> 401
+   `UNAUTHENTICATED`, sai role -> 403 `ACCESS_DENIED`. Không có `<roles>` thì ai cũng gọi được.
+3. **JSON Schema** (`schemas/*.json`): cấu trúc body: đủ field, đúng kiểu, không có field lạ -> 400 `INVALID_REQUEST_BODY`.
+4. **Validator** (`validation/*Validator`): giá trị từng field: bắt buộc, không rỗng, đúng định dạng. **Không truy vấn DB.**
    Lỗi ném `BusinessException` kèm danh sách field lỗi để client biết field nào sai.
-4. **Controller**: lấy dữ liệu từ `ApiRequest`, gọi service, trả `ResponseHandler.generateResponse(...)`.
-5. **Service**: logic nghiệp vụ và mọi kiểm tra cần DB (trùng, tồn tại, trạng thái), ném `BusinessException` khi vi phạm.
+5. **Controller**: lấy dữ liệu từ `ApiRequest` (người gọi: `getUserId()`, `getUserRole()`), gọi service, trả
+   `ResponseHandler.generateResponse(...)`.
+6. **Service**: logic nghiệp vụ và mọi kiểm tra cần DB (trùng, tồn tại, trạng thái, quyền trên dữ liệu như "quán này
+   có phải của người gọi"), ném `BusinessException` khi vi phạm. ID chủ sở hữu lấy từ `getUserId()`, không từ body.
 
 ## gRPC giữa các service
 

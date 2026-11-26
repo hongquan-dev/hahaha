@@ -1,5 +1,6 @@
 package com.fooddelivery.auth.common.model;
 
+import com.fooddelivery.dto.auth.UserRole;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -36,9 +37,11 @@ public class User {
     @Column(name = "phone_number", unique = true)
     private String phoneNumber;
 
-    // e.g. "CUSTOMER". Set by the server, never taken from a request
-    @Column(name = "role")
-    private String role;
+    // Set by the server, never taken from a request. Stored as the enum name, e.g. "CUSTOMER", limited by the
+    // ck_users_role constraint
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 32)
+    private UserRole role;
 
     @Column(name = "active", nullable = false)
     private boolean active = true;
@@ -51,7 +54,7 @@ public class User {
 
     public User() {}
 
-    public User(Long id, String username, String password, String email, String phoneNumber, String role) {
+    public User(Long id, String username, String password, String email, String phoneNumber, UserRole role) {
         this.id = id;
         this.username = username;
         this.password = password;
@@ -87,8 +90,8 @@ public class User {
     public String getPhoneNumber() { return phoneNumber; }
     public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
 
-    public String getRole() { return role; }
-    public void setRole(String role) { this.role = role; }
+    public UserRole getRole() { return role; }
+    public void setRole(UserRole role) { this.role = role; }
 
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }

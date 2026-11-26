@@ -12,6 +12,7 @@ import com.fooddelivery.auth.service.session.IssuedTokens;
 import com.fooddelivery.auth.service.session.SessionService;
 import com.fooddelivery.auth.service.token.AccessTokenVerification;
 import com.fooddelivery.auth.service.token.TokenService;
+import com.fooddelivery.dto.auth.UserRole;
 import com.fooddelivery.id.entity.EntityType;
 import com.fooddelivery.id.entity.IdUtils;
 import com.fooddelivery.web.exception.BusinessException;
@@ -44,9 +45,9 @@ import java.util.UUID;
 public class AuthService {
     private static final Logger log = LogManager.getLogger(AuthService.class);
 
-    // Role of every account created by public registration. Other roles (restaurant, shipper, admin) are granted by
-    // an admin
-    public static final String DEFAULT_ROLE = "CUSTOMER";
+    // Role of every account created by public registration. Other roles (restaurant owner, driver, admin) are granted
+    // by an admin
+    public static final UserRole DEFAULT_ROLE = UserRole.CUSTOMER;
 
     private static final FieldErrorDetail USERNAME_TAKEN = new FieldErrorDetail("username", "Username is already taken");
     private static final FieldErrorDetail EMAIL_TAKEN = new FieldErrorDetail("email", "Email is already registered");

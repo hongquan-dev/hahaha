@@ -17,13 +17,14 @@ java -jar fd-auth-service/target/fd-auth-service-1.0.0.jar   # chạy jar đã b
 
 Thư viện dùng chung `food-delivery-libs` (repo riêng) phải được `mvn install` vào `~/.m2` trước.
 
-## Chạy gateway, auth và order
+## Chạy gateway, auth, order và restaurant
 
-1. PostgreSQL ở `localhost:5432` có hai database, tạo một lần bằng tay (bảng do Flyway tạo khi service khởi động):
+1. PostgreSQL ở `localhost:5432` có ba database, tạo một lần bằng tay (bảng do Flyway tạo khi service khởi động):
 
    ```sql
    CREATE DATABASE "FD_auth_db";
    CREATE DATABASE "FD_order_db";
+   CREATE DATABASE "FD_restaurant_db";
    ```
 
 2. Khởi động, mỗi lệnh một terminal. Thứ tự không bắt buộc: gateway chỉ tải public key của auth ở request đầu tiên.
@@ -31,6 +32,7 @@ Thư viện dùng chung `food-delivery-libs` (repo riêng) phải được `mvn 
    ```bash
    ./mvnw spring-boot:run -pl fd-auth-service       # 8081
    ./mvnw spring-boot:run -pl fd-order-service      # 8083
+   ./mvnw spring-boot:run -pl fd-restaurant-service # 8082
    ./mvnw spring-boot:run -pl fd-gateway-service    # 8090
    ```
 
@@ -39,7 +41,8 @@ Thư viện dùng chung `food-delivery-libs` (repo riêng) phải được `mvn 
 
 ```
 Client ──> gateway :8090 ── /auth/**  (login, register: RateLimit theo IP) ──> auth :8081
-                         └─ /order/** (JwtAuth: kiểm tra token, gắn X-User-Id) ──> order :8083
+                         ├─ /order/** (JwtAuth: kiểm tra token, gắn X-User-Id, X-User-Role) ──> order :8083
+                         └─ /restaurant/** (JwtAuth như order; role từng API do service kiểm tra) ──> restaurant :8082
 ```
 
 Mỗi response có header `X-Request-Id`; mọi dòng log của request đó, ở mọi service, có cùng ID trong `[...]` sau tên
@@ -52,8 +55,8 @@ giai đoạn trước; gRPC `GetUser` trong đó đã bị xoá). Việc còn l�
 
 ## Service Ports
 
-Client (frontend, Postman) chỉ gọi qua API Gateway `8090`; gateway chuyển `/auth/**` sang auth-service và
-`/order/**` (sau khi kiểm tra token) sang order-service. Các port còn lại là nội bộ, không được mở ra ngoài: service
+Client (frontend, Postman) chỉ gọi qua API Gateway `8090`; gateway chuyển `/auth/**` sang auth-service,
+`/order/**` và `/restaurant/**` (sau khi kiểm tra token) sang order-service và restaurant-service. Các port còn lại là nội bộ, không được mở ra ngoài: service
 phía sau tin header `X-User-Id` do gateway gắn.
 
 Vì vậy chỉ gateway nghe trên mọi địa chỉ. Các service khác chỉ nghe trên `127.0.0.1` (`server.address`; gRPC server

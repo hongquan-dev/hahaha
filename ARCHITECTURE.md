@@ -15,11 +15,13 @@ trong `src/main` không được nhắc tới ở đây.
 Backend microservice của ứng dụng giao đồ ăn: Maven multi-module, Java 21, Spring Boot 4.1.2, Spring Cloud 2025.1
 (Gateway WebFlux), Spring gRPC, PostgreSQL + Flyway, Log4j2. Build bằng Maven Wrapper `./mvnw` (Maven 3.9.16).
 
-Thư viện dùng chung nằm ở repo riêng `food-delivery-libs` (format `ApiResponse`, luồng `api-routes.xml` -> JSON
-Schema -> validator, ID 14 chữ số; xem `ARCHITECTURE.md` của repo đó), cài vào `~/.m2` trước khi build backend.
+Thư viện dùng chung nằm ở repo riêng `food-delivery-libs` (format `ApiResponse`, luồng `api-routes.xml` -> role
+`<roles>` -> JSON Schema -> validator, enum `UserRole`, ID 14 chữ số; xem `ARCHITECTURE.md` của repo đó), cài vào
+`~/.m2` trước khi build backend.
 
 Trạng thái hiện tại: gateway và auth-service đã có chức năng (đăng ký, đăng nhập, phiên, kiểm tra token ở gateway).
-Order, restaurant, delivery, chat mới chỉ có health check. Chưa có API gRPC nào: `fd-grpc-api` mới có phần hỗ trợ
+Restaurant-service có API đầu tiên (chủ quán tạo nhà hàng, giới hạn theo role). Order, delivery, chat mới chỉ có
+health check. Chưa có API gRPC nào: `fd-grpc-api` mới có phần hỗ trợ
 dùng chung, sẵn cho API gRPC đầu tiên.
 
 ---
@@ -31,11 +33,12 @@ food-delivery-libs (~/.m2)
         │
         ▼
    common-lib ─────────────┬──────────────► fd-auth-service
-   (bundle dependency)     └──────────────► fd-order-service
+   (bundle dependency)     ├──────────────► fd-order-service
+                           └──────────────► fd-restaurant-service
 
    common-dto-lib ─────────────────────────► fd-gateway-service (WebFlux, không dùng common-lib)
 
-   spring-boot-starter-webmvc ─────────────► fd-restaurant-service, fd-delivery-service, fd-chat-service
+   spring-boot-starter-webmvc ─────────────► fd-delivery-service, fd-chat-service
 
    fd-grpc-api ── (chưa service nào dùng) ──► service có gRPC server / client sau này
 ```
@@ -44,10 +47,10 @@ food-delivery-libs (~/.m2)
 |---|---:|---|---|
 | `common-lib` | - | Không có code Java: gom dependency chung cho service Spring MVC (4 lib của `food-delivery-libs`, JPA, PostgreSQL, Flyway, Log4j2) và `log4j2-spring.xml` chung | - |
 | `fd-grpc-api` | - | Thư viện (jar), không chạy như service. Hợp đồng gRPC giữa service: file `.proto` trong `src/main/proto` (sinh code bằng `protobuf-maven-plugin`; hiện chưa có), `GrpcMetadataKeys`; và phần hỗ trợ gRPC dùng chung, tự đăng ký vào mọi service có gRPC server/client (`GrpcSupportAutoConfiguration`) | - |
-| `fd-gateway-service` | 8090 | Cổng duy nhất cho client: route `/auth/**`, `/order/**`; kiểm tra access token (`JwtAuth`) trước order | - |
+| `fd-gateway-service` | 8090 | Cổng duy nhất cho client: route `/auth/**`, `/order/**`, `/restaurant/**`; kiểm tra access token (`JwtAuth`) trước order và restaurant | - |
 | `fd-auth-service` | 8081 | Tài khoản, đăng nhập, phiên (refresh token), ký access token RS256, JWKS | `FD_auth_db` |
 | `fd-order-service` | 8083 | Đơn hàng (chưa có nghiệp vụ, chỉ có health check) | `FD_order_db` (chưa có bảng) |
-| `fd-restaurant-service` | 8082 | Nhà hàng, món ăn (chưa có nghiệp vụ) | - |
+| `fd-restaurant-service` | 8082 | Nhà hàng (chủ quán tạo quán của mình), sau này món ăn, menu | `FD_restaurant_db` |
 | `fd-delivery-service` | 8084 | Giao hàng (chưa có nghiệp vụ) | - |
 | `fd-chat-service` | 8085 | Chat (chưa có nghiệp vụ) | - |
 
@@ -153,7 +156,7 @@ Test của phần hỗ trợ gọi gRPC thật (in-process) qua `src/test/proto/
 | `CleanupProperties` | `config.properties` | Bind `auth.cleanup.*` (thời gian giữ lại, kích thước lô) | `CleanupPropertiesTest` |
 | `ClockConfig` | `config.common` | Bean `Clock` | (không cần) |
 | `SchedulingConfig` | `config.common` | Bật scheduler cho `@Scheduled` | (không cần) |
-| `User` | `common.model` | Entity bảng `users` | (entity) |
+| `User` | `common.model` | Entity bảng `users`; `role` là `UserRole` (common-dto-lib) | (entity) |
 | `RefreshToken` | `common.model` | Entity bảng `refresh_tokens` (chỉ lưu hash) | (entity) |
 | `LoginFailure` | `common.model` | Entity bảng `login_failures` (khoá là SHA-256, không lưu identifier) | (entity) |
 | `IdentifierNormalizer` | `common.util` | Chuẩn hoá username/email/SĐT về dạng lưu DB | `IdentifierNormalizerTest` |
@@ -167,7 +170,8 @@ Test của phần hỗ trợ gọi gRPC thật (in-process) qua `src/test/proto/
 
 Resource: `api-routes.xml` (khai báo 8 API), `schemas/login.json`, `schemas/register.json`,
 `db/migration/V1__create_users_and_refresh_tokens.sql`, `V2__add_unique_phone_number_to_users.sql`,
-`V3__create_login_failures.sql`, `application.properties` (mô tả từng property `auth.*`).
+`V3__create_login_failures.sql`, `V4__constrain_user_role.sql`, `application.properties` (mô tả từng property
+`auth.*`).
 
 ### fd-order-service (`com.fooddelivery.order`)
 
@@ -178,13 +182,29 @@ Resource: `api-routes.xml` (khai báo 8 API), `schemas/login.json`, `schemas/reg
 
 Resource: `api-routes.xml` (1 API), `application.properties`.
 
-### fd-restaurant-service, fd-delivery-service, fd-chat-service
+### fd-restaurant-service (`com.fooddelivery.restaurant`)
+
+| Class | Package | Vai trò | Test |
+|---|---|---|---|
+| `RestaurantApplication` | (gốc) | Entry point | (không cần) |
+| `RestaurantController` | `controller` | `GET /restaurant/health`, `POST /restaurant/restaurants`, `GET /restaurant/restaurants/me` (chủ quán là người gọi, từ `X-User-Id`) | `RestaurantControllerTest` |
+| `RestaurantValidator` | `validation` | Validator của tạo quán: bắt buộc, độ dài, SĐT di động Việt Nam | `RestaurantValidatorTest` |
+| `RestaurantService` | `service` | Tạo quán `PENDING`, mỗi chủ quán một quán -> 409 `RESTAURANT_ALREADY_EXISTS`; quán của người gọi, chưa có -> 404 `RESTAURANT_NOT_FOUND` | `RestaurantServiceTest` |
+| `Restaurant` | `common.model` | Entity bảng `restaurants` | (entity) |
+| `RestaurantStatus` | `common.model` | `PENDING` (chờ duyệt), `ACTIVE`, `SUSPENDED` | (enum) |
+| `RestaurantRepository` | `repository` | JPA `restaurants` | (Spring Data) |
+| `CreateRestaurantRequest` | `dto` | Body `POST /restaurant/restaurants`; `normalized()` trim, SĐT về `+84` | `CreateRestaurantRequestTest` |
+| `RestaurantDto` | `dto` | Nhà hàng trả về client | (record) |
+
+Resource: `api-routes.xml` (3 API), `schemas/create-restaurant.json`, `db/migration/V1__create_restaurants.sql`,
+`application.properties`.
+
+### fd-delivery-service, fd-chat-service
 
 Chỉ có entry point và health check, chưa dùng `common-lib` hay API flow:
 
 | Module | Class |
 |---|---|
-| `fd-restaurant-service` | `RestaurantApplication`, `RestaurantController` (`GET /restaurant/health`) |
 | `fd-delivery-service` | `DeliveryApplication`, `DeliveryController` (`GET /delivery/health`) |
 | `fd-chat-service` | `ChatApplication`, `ChatController` (`GET /chat/health`) |
 
@@ -198,9 +218,10 @@ Chỉ có entry point và health check, chưa dùng `common-lib` hay API flow:
 Client ──> gateway :8090
             ├─ POST /auth/login, /auth/register  RateLimit: quá N request/IP/path -> 429 ──> auth :8081
             ├─ /auth/**   ───────────────────────────────────────────────> auth :8081
-            └─ /order/**  JwtAuth: cookie access_token -> AccessTokenVerifier (key từ JwksKeyProvider)
+            └─ /order/**, /restaurant/**
+                          JwtAuth: cookie access_token -> AccessTokenVerifier (key từ JwksKeyProvider)
                           sai/thiếu -> 401 UNAUTHENTICATED, hết hạn -> 401 TOKEN_EXPIRED, chưa có key -> 503
-                          hợp lệ -> xoá X-User-Id/X-User-Role của client, gắn từ token ──> order :8083
+                          hợp lệ -> xoá X-User-Id/X-User-Role của client, gắn từ token ──> order :8083 / restaurant :8082
 ```
 
 Mọi request qua gateway có **request ID**: `RequestIdGlobalFilter` (chạy trước mọi filter) gắn `X-Request-Id` gửi
@@ -209,9 +230,21 @@ pattern in `[requestId]`; gọi gRPC thì `RequestIdClientInterceptor` -> `Reque
 service nhận. Tìm một ID là thấy mọi dòng log của request ở mọi service. Hợp đồng (tên header, định dạng) là
 `RequestIds` của common-dto-lib.
 
-Trong mỗi service Spring MVC (auth, order), request đi qua luồng của `common-api-flow-lib`: `api-routes.xml` (404) ->
-JSON Schema (400) -> validator (400 + field lỗi) -> controller -> service (lỗi nghiệp vụ, cần DB) -> `ApiResponse`.
-Auth có thêm `OriginCheckFilter` trước luồng này.
+Trong mỗi service Spring MVC (auth, order, restaurant), request đi qua luồng của `common-api-flow-lib`:
+`api-routes.xml` (404) -> `<roles>` của route so với `X-User-Role` (thiếu `X-User-Id` -> 401 `UNAUTHENTICATED`, sai
+role -> 403 `ACCESS_DENIED`) -> JSON Schema (400) -> validator (400 + field lỗi) -> controller -> service (lỗi nghiệp
+vụ, cần DB, quyền trên dữ liệu như "quán này có phải của người gọi") -> `ApiResponse`. Auth có thêm
+`OriginCheckFilter` trước luồng này.
+
+### Phân quyền
+
+- **Gateway** chỉ xác thực (token hợp lệ chưa) và gắn `X-User-Id` / `X-User-Role`; không biết API nào cần role nào.
+- **Role theo API** khai báo bằng `<roles>` trong `api-routes.xml` của service, tên trong `UserRole`
+  (`CUSTOMER`, `RESTAURANT_OWNER`, `DRIVER`, `ADMIN`); route không có `<roles>` thì ai cũng gọi được.
+- **Quyền trên dữ liệu** (sở hữu) kiểm tra trong service bằng `X-User-Id` + DB; ID chủ sở hữu luôn lấy từ header,
+  không bao giờ từ body.
+- Mỗi tài khoản một role. Đăng ký công khai luôn ra `CUSTOMER`; role khác hiện cấp tay bằng SQL (`postman/README.md`),
+  sau này qua API admin. Đổi role thì người dùng phải đăng nhập lại để token có role mới.
 
 ### Đăng nhập và phiên (auth)
 
@@ -243,12 +276,16 @@ Lỗi của service nhận giữ nguyên mã: status + trailer `error-code` -> `
 
 ## 5. Database
 
-- Mỗi service sở hữu database riêng (`FD_auth_db`, `FD_order_db`); service không đọc database của service khác.
+- Mỗi service sở hữu database riêng (`FD_auth_db`, `FD_order_db`, `FD_restaurant_db`); service không đọc database
+  của service khác. Database tạo tay một lần (`CREATE DATABASE`), bảng do Flyway tạo.
 - Cấu trúc chỉ đổi qua migration Flyway trong `src/main/resources/db/migration` của service đó; Hibernate
   `ddl-auto=validate`. Quy tắc chi tiết trong `CLAUDE.md`.
 - `FD_auth_db`: bảng `users`, `refresh_tokens` (V1; V2 thêm unique `phone_number`), `login_failures` (V3).
   `DataCleanupService` xoá định kỳ phiên đã chết quá 7 ngày và dòng `login_failures` hết tác dụng; phiên còn sống
-  không bao giờ bị đụng tới (token đã bị thay của nó cần để phát hiện token bị đánh cắp).
+  không bao giờ bị đụng tới (token đã bị thay của nó cần để phát hiện token bị đánh cắp). `users.role` bắt buộc,
+  `CHECK` theo tên `UserRole` (V4).
+- `FD_restaurant_db`: bảng `restaurants` (V1), `owner_user_id` unique (mỗi chủ quán một quán, không khoá ngoại vì
+  user nằm ở database khác), `status` `CHECK` theo `RestaurantStatus`.
 
 ---
 
@@ -271,6 +308,8 @@ Lỗi của service nhận giữ nguyên mã: status + trailer `error-code` -> `
 - **Header danh tính**: service phía sau gateway tin `X-User-Id` / `X-User-Role` do gateway gắn; gateway luôn xoá bản
   client gửi. Port nội bộ (8081-8085, và port gRPC khi có) không được mở ra ngoài: chúng chỉ nghe trên `127.0.0.1`
   (`server.address`, `spring.grpc.server.address`), chỉ gateway nghe trên mọi địa chỉ.
+- **Role**: tên trong `UserRole` (common-dto-lib) nằm trong `users.role`, claim `role`, header `X-User-Role` và thẻ
+  `<roles>`; không đổi tên hay xoá role đã có. Thêm role: hằng số mới + migration nới `ck_users_role`.
 - **Access token**: RS256, `kid` khớp JWKS, claim `sub` (user ID), `role`, `iss`, `iat`, `exp`, `jti`. Đổi ở `TokenService` thì phải
   đổi `AccessTokenVerifier` của gateway.
 - **Cookie**: tên `access_token`, `refresh_token` và thuộc tính (`HttpOnly`, `SameSite`, `Secure`, `Path`) trong
@@ -287,7 +326,8 @@ Lỗi của service nhận giữ nguyên mã: status + trailer `error-code` -> `
 
 | Việc | Sửa ở | Lưu ý |
 |---|---|---|
-| Thêm API vào một service | `api-routes.xml`, `schemas/*.json`, `validation/*Validator`, controller, service | Theo "Luồng xử lý một API" trong `CLAUDE.md`; thêm file cURL `postman/<module>/<METHOD>_<path>.txt` (`/` thành `_`) |
+| Thêm API vào một service | `api-routes.xml`, `schemas/*.json`, `validation/*Validator`, controller, service | Theo "Luồng xử lý một API" trong `CLAUDE.md`; API cần đăng nhập thì thêm `<roles>`; thêm file cURL `postman/<module>/<METHOD>_<path>.txt` (`/` thành `_`) |
+| Đổi role được gọi một API | `<roles>` của route trong `api-routes.xml` | Quyền trên dữ liệu (sở hữu) vẫn kiểm tra trong service |
 | Cho client gọi API qua gateway | `routes[*]` trong `application.properties` của gateway | Cần đăng nhập thì thêm `JwtAuth`; dễ bị spam (login, đăng ký, gửi OTP...) thì thêm `RateLimit` |
 | Đổi bảng / thêm cột | Migration mới `V<n>__...sql` + entity cùng commit | Không sửa migration cũ |
 | Gọi service khác | Client `XxxGrpcClient` trong `client/` của service gọi, bọc stub gRPC; không dùng HTTP | Ánh xạ lỗi thành `BusinessException`, có deadline |
@@ -305,7 +345,8 @@ Lỗi của service nhận giữ nguyên mã: status + trailer `error-code` -> `
 - Test dùng chung trong gateway: `AccessTokenVerifierTestSupport` (tạo khoá và token mẫu).
 - Kiểm thử ghép nối: mỗi API HTTP một file cURL trong `postman/<module>/` (cách dùng: `postman/README.md`).
 - Checklist nghiệm thu theo từng phần: `docs/auth-login-checklist.md`, `docs/gateway-grpc-checklist.md` (nhật ký giai
-  đoạn trước, gRPC `GetUser` trong đó đã bị xoá), `docs/grpc-hardening-checklist.md`.
+  đoạn trước, gRPC `GetUser` trong đó đã bị xoá), `docs/grpc-hardening-checklist.md`,
+  `docs/restaurant-role-checklist.md`.
 - `ArchitectureDocTest` (common-lib): mọi module và mọi class trong `src/main/java` phải được nhắc trong file này.
 - Test gRPC của service dùng `InProcessGrpcServer` (test jar của fd-grpc-api, `<type>test-jar</type>`): server
   in-process có đúng các interceptor của service đang chạy; mẫu trong `docs/grpc-conventions.md`.
