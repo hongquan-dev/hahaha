@@ -9,6 +9,8 @@ public enum RestaurantStatus {
     PENDING,
     // Approved and open to customers
     ACTIVE,
+    // Refused by an admin, with the reason in reviewNote; the owner fixes it and submits again, back to PENDING
+    REJECTED,
     // Hidden from customers by an admin
     SUSPENDED
 }

@@ -126,3 +126,21 @@ SQL đăng nhập lại thì `GET /auth/me` trả `"role": "RESTAURANT_OWNER"`.
 - [x] Gọi lần hai -> 409 `RESTAURANT_ALREADY_EXISTS`
 - [x] `GET /restaurant/health` qua gateway không cần token -> 200
 - [x] Gọi thẳng `:8082` không có header user -> 401 `UNAUTHENTICATED` (từ API flow)
+
+---
+
+## Việc tiếp theo: admin duyệt quán (chưa làm)
+
+Database đã sẵn sàng từ `V2__add_restaurant_review.sql`: `status` có `REJECTED`, cột `review_note`, `submitted_at`,
+`reviewed_at`, `reviewed_by` trong `restaurants`, bảng lịch sử `restaurant_reviews`. Khi làm phần duyệt:
+
+- [ ] Tài khoản admin đầu tiên (đề xuất: tạo lúc auth-service khởi động từ biến môi trường)
+- [ ] `EntityType` mới cho ID của `restaurant_reviews` (`common-id-lib`, mã chưa dùng), entity `RestaurantReview`
+- [ ] Chủ quán: `PUT /restaurant/restaurants/me` sửa và gửi lại (`REJECTED` -> `PENDING`, cập nhật `submitted_at`,
+      ghi `SUBMITTED` vào lịch sử); sửa thông tin cần xác minh khi `ACTIVE` thì cũng quay về `PENDING`
+- [ ] Admin: danh sách theo trạng thái, `/approve`, `/reject` (bắt buộc lý do), `/suspend` (bắt buộc lý do),
+      `/reactivate`; chỉ chuyển theo đúng sơ đồ, sai thì 409 `INVALID_STATUS_TRANSITION`; mỗi lần ghi `reviewed_at`,
+      `reviewed_by` và một dòng `restaurant_reviews`
+- [ ] `RestaurantDto` trả `reviewNote`; frontend thêm `REJECTED` vào `RestaurantStatus` và `RestaurantStatusBadge`
+      (hiện thiếu, nhận `REJECTED` sẽ lỗi), hiện lý do và form sửa ở `/merchant`
+- [ ] Làm hồ sơ tài xế ở delivery-service theo cùng mô hình

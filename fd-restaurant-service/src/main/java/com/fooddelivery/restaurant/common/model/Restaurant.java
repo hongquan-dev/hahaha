@@ -43,6 +43,22 @@ public class Restaurant {
     @Column(name = "status", nullable = false, length = 32)
     private RestaurantStatus status;
 
+    // Reason of the last admin decision, shown to the owner; required while REJECTED (ck_restaurants_rejected_note),
+    // null otherwise until the review APIs exist
+    @Column(name = "review_note", length = 1000)
+    private String reviewNote;
+
+    // Last time the owner sent the restaurant for review: creation, later each resubmission
+    @Column(name = "submitted_at", nullable = false)
+    private LocalDateTime submittedAt;
+
+    // Last admin decision and the admin's users.id in auth-service; both null until the first review
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
+    @Column(name = "reviewed_by")
+    private Long reviewedBy;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -67,6 +83,10 @@ public class Restaurant {
         LocalDateTime now = LocalDateTime.now();
         this.createdAt = now;
         this.updatedAt = now;
+        // Creating a restaurant is its first submission for review
+        if (this.submittedAt == null) {
+            this.submittedAt = now;
+        }
     }
 
     @PreUpdate
@@ -94,6 +114,18 @@ public class Restaurant {
 
     public RestaurantStatus getStatus() { return status; }
     public void setStatus(RestaurantStatus status) { this.status = status; }
+
+    public String getReviewNote() { return reviewNote; }
+    public void setReviewNote(String reviewNote) { this.reviewNote = reviewNote; }
+
+    public LocalDateTime getSubmittedAt() { return submittedAt; }
+    public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
+
+    public LocalDateTime getReviewedAt() { return reviewedAt; }
+    public void setReviewedAt(LocalDateTime reviewedAt) { this.reviewedAt = reviewedAt; }
+
+    public Long getReviewedBy() { return reviewedBy; }
+    public void setReviewedBy(Long reviewedBy) { this.reviewedBy = reviewedBy; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

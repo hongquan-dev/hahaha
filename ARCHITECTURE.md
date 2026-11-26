@@ -190,13 +190,14 @@ Resource: `api-routes.xml` (1 API), `application.properties`.
 | `RestaurantController` | `controller` | `GET /restaurant/health`, `POST /restaurant/restaurants`, `GET /restaurant/restaurants/me` (chủ quán là người gọi, từ `X-User-Id`) | `RestaurantControllerTest` |
 | `RestaurantValidator` | `validation` | Validator của tạo quán: bắt buộc, độ dài, SĐT di động Việt Nam | `RestaurantValidatorTest` |
 | `RestaurantService` | `service` | Tạo quán `PENDING`, mỗi chủ quán một quán -> 409 `RESTAURANT_ALREADY_EXISTS`; quán của người gọi, chưa có -> 404 `RESTAURANT_NOT_FOUND` | `RestaurantServiceTest` |
-| `Restaurant` | `common.model` | Entity bảng `restaurants` | (entity) |
-| `RestaurantStatus` | `common.model` | `PENDING` (chờ duyệt), `ACTIVE`, `SUSPENDED` | (enum) |
+| `Restaurant` | `common.model` | Entity bảng `restaurants`, gồm cả cột duyệt (`review_note`, `submitted_at`, `reviewed_at`, `reviewed_by`) | (entity) |
+| `RestaurantStatus` | `common.model` | `PENDING` (chờ duyệt), `ACTIVE`, `REJECTED` (bị từ chối, có lý do), `SUSPENDED` | (enum) |
 | `RestaurantRepository` | `repository` | JPA `restaurants` | (Spring Data) |
 | `CreateRestaurantRequest` | `dto` | Body `POST /restaurant/restaurants`; `normalized()` trim, SĐT về `+84` | `CreateRestaurantRequestTest` |
 | `RestaurantDto` | `dto` | Nhà hàng trả về client | (record) |
 
 Resource: `api-routes.xml` (3 API), `schemas/create-restaurant.json`, `db/migration/V1__create_restaurants.sql`,
+`V2__add_restaurant_review.sql`,
 `application.properties`.
 
 ### fd-delivery-service, fd-chat-service
@@ -285,7 +286,12 @@ Lỗi của service nhận giữ nguyên mã: status + trailer `error-code` -> `
   không bao giờ bị đụng tới (token đã bị thay của nó cần để phát hiện token bị đánh cắp). `users.role` bắt buộc,
   `CHECK` theo tên `UserRole` (V4).
 - `FD_restaurant_db`: bảng `restaurants` (V1), `owner_user_id` unique (mỗi chủ quán một quán, không khoá ngoại vì
-  user nằm ở database khác), `status` `CHECK` theo `RestaurantStatus`.
+  user nằm ở database khác), `status` `CHECK` theo `RestaurantStatus`. V2 chuẩn bị cho việc admin duyệt quán: thêm
+  `REJECTED` (bắt buộc có `review_note`), `submitted_at`, `reviewed_at` / `reviewed_by`, và bảng lịch sử
+  `restaurant_reviews` (mỗi bước duyệt một dòng, không sửa, không xoá).
+- **Đã có trong database, chưa có code dùng** (làm khi có API duyệt quán, xem `docs/restaurant-role-checklist.md`):
+  cột duyệt chưa được API nào ghi; bảng `restaurant_reviews` chưa có entity, ID của nó cần một `EntityType` mới ở
+  `common-id-lib`.
 
 ---
 
